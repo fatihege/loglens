@@ -1,0 +1,5 @@
+package loglens
+
+func main() {
+
+}
