@@ -27,7 +27,7 @@ func main() {
 	rc, err := source.Open(filePath)
 	if err != nil {
 		if errors.Is(err, source.ErrPathIsDir) {
-			fmt.Fprintln(os.Stderr, "provided path is a directory")
+			fmt.Fprintf(os.Stderr, "%v\n", err)
 		} else {
 			fmt.Fprintf(os.Stderr, "error opening source: %v\n", err)
 		}
