@@ -1,17 +1,37 @@
 package main
 
 import (
+	"errors"
+	"flag"
 	"fmt"
+	"os"
 
 	"github.com/fatihege/loglens/internal/source"
 )
 
 func main() {
-	reader := source.NewReader("./internal/source/reader.go")
-	s, err := reader.Read()
-	if err != nil {
-		panic(err)
+	topFlag := flag.Int("top", 0, "display top n endpoints")
+
+	flag.Parse()
+
+	if *topFlag > 0 {
+		fmt.Printf("top %d\n", *topFlag)
 	}
 
-	fmt.Print(s)
+	filePath := flag.Arg(0)
+	if filePath == "" {
+		fmt.Fprintln(os.Stderr, "no file path provided")
+		os.Exit(1)
+	}
+
+	rc, err := source.Open(filePath)
+	if err != nil {
+		if errors.Is(err, source.ErrPathIsDir) {
+			fmt.Fprintln(os.Stderr, "provided path is a directory")
+		} else {
+			fmt.Fprintf(os.Stderr, "error opening source: %v\n", err)
+		}
+		os.Exit(1)
+	}
+	defer rc.Close()
 }
