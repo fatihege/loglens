@@ -22,40 +22,53 @@ func (s *stream) Close() error {
 }
 
 func Open(path string) (io.ReadCloser, error) {
-	if path == "-" {
-		return &stream{Reader: os.Stdin, close: func() error { return nil }}, nil
-	}
+	var file *os.File
+	var err error
+	var closeFn func() error
+	stdin := false
 
-	file, err := os.Open(path)
-	if err != nil {
-		return nil, err // os.PathError already contains enough information
+	if path == "-" {
+		file = os.Stdin
+		stdin = true
+		closeFn = func() error { return nil }
+	} else {
+		file, err = os.Open(path)
+		if err != nil {
+			return nil, err // os.PathError already contains enough information
+		}
+
+		closeFn = file.Close
 	}
 
 	success := false
 	defer func() {
 		if !success {
-			_ = file.Close()
+			closeFn()
 		}
 	}()
 
-	fileInfo, err := file.Stat()
+	fi, err := file.Stat()
 	if err != nil {
-		return nil, fmt.Errorf("gather file stat: %w", err)
+		return nil, fmt.Errorf("gather stat for %s: %w", path, err)
 	}
 
-	if fileInfo.IsDir() {
+	if !stdin && fi.IsDir() {
 		return nil, fmt.Errorf("%s: %w", path, ErrPathIsDir)
+	}
+
+	if stdin && fi.Mode()&os.ModeCharDevice != 0 {
+		return nil, ErrTerminalInput
 	}
 
 	br := bufio.NewReader(file)
 	header, err := br.Peek(2)
 	if err != nil && !errors.Is(err, io.EOF) {
-		return nil, fmt.Errorf("peek file: %w", err)
+		return nil, fmt.Errorf("peek %s: %w", path, err)
 	}
 
 	if bytes.HasPrefix(header, gzipMagic) {
 		// the file is gz
-		rc, err := openGzip(file, br)
+		rc, err := openGzip(br, closeFn)
 		if err != nil {
 			return nil, err
 		}
@@ -65,16 +78,17 @@ func Open(path string) (io.ReadCloser, error) {
 	}
 
 	success = true
-	return &stream{Reader: br, close: file.Close}, nil
+
+	return &stream{Reader: br, close: closeFn}, nil
 }
 
-func openGzip(file *os.File, br *bufio.Reader) (io.ReadCloser, error) {
+func openGzip(br *bufio.Reader, closeFn func() error) (io.ReadCloser, error) {
 	gr, err := gzip.NewReader(br)
 	if err != nil {
 		return nil, fmt.Errorf("create gzip reader: %w", err)
 	}
 
 	return &stream{Reader: gr, close: func() error {
-		return errors.Join(gr.Close(), file.Close())
+		return errors.Join(gr.Close(), closeFn())
 	}}, nil
 }

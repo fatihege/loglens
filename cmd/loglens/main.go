@@ -9,7 +9,7 @@ import (
 	"github.com/fatihege/loglens/internal/source"
 )
 
-func main() {
+func run() int {
 	topFlag := flag.Int("top", 0, "display top n endpoints")
 
 	flag.Parse()
@@ -21,17 +21,27 @@ func main() {
 	filePath := flag.Arg(0)
 	if filePath == "" {
 		fmt.Fprintln(os.Stderr, "no file path provided")
-		os.Exit(1)
+		return 2
 	}
 
 	rc, err := source.Open(filePath)
 	if err != nil {
-		if errors.Is(err, source.ErrPathIsDir) {
-			fmt.Fprintf(os.Stderr, "%v\n", err)
-		} else {
+		switch {
+		case errors.Is(err, source.ErrPathIsDir) || errors.Is(err, source.ErrTerminalInput):
+			fmt.Fprintln(os.Stderr, err)
+			return 2
+		default:
 			fmt.Fprintf(os.Stderr, "error opening source: %v\n", err)
+			return 1
 		}
-		os.Exit(1)
+
 	}
+
 	defer rc.Close()
+
+	return 0
+}
+
+func main() {
+	os.Exit(run())
 }
