@@ -15,7 +15,7 @@ func openInput(path string) (io.ReadCloser, error) {
 	if path == "" || path == "-" {
 		si, err := os.Stdin.Stat()
 		if err != nil {
-			return nil, fmt.Errorf("error occurred while gathering stat for stdin: %v\n", err)
+			return nil, fmt.Errorf("gather stat for stdin: %w", err)
 		}
 
 		if si.Mode()&os.ModeCharDevice != 0 {
@@ -60,7 +60,7 @@ func run() int {
 	}
 
 	if err := s.Err(); err != nil {
-		fmt.Fprintf(os.Stderr, "error occurred while reading tokens: %v", err)
+		fmt.Fprintf(os.Stderr, "reading tokens: %v", err)
 		return 1
 	}
 
