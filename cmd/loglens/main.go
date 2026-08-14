@@ -1,6 +1,7 @@
 package main
 
 import (
+	"bufio"
 	"errors"
 	"flag"
 	"fmt"
@@ -41,14 +42,29 @@ func run() int {
 
 	if err != nil {
 		fmt.Fprintln(os.Stderr, err) // returned errors already has context
+
 		if errors.Is(err, source.ErrPathIsDir) || errors.Is(err, ErrTerminalInput) {
 			return 2
-		} else {
-			return 1
 		}
+
+		return 1
 	}
 
 	defer func() { _ = rc.Close() }()
+
+	s := bufio.NewScanner(rc)
+	lines := 0
+
+	for s.Scan() {
+		lines++
+	}
+
+	if err := s.Err(); err != nil {
+		fmt.Fprintf(os.Stderr, "error occurred while reading tokens: %v", err)
+		return 1
+	}
+
+	fmt.Println("read lines", lines)
 
 	return 0
 }
