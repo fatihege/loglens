@@ -4,10 +4,28 @@ import (
 	"errors"
 	"flag"
 	"fmt"
+	"io"
 	"os"
 
 	"github.com/fatihege/loglens/internal/source"
 )
+
+func openInput(path string) (io.ReadCloser, error) {
+	if path == "" || path == "-" {
+		si, err := os.Stdin.Stat()
+		if err != nil {
+			return nil, fmt.Errorf("error occurred while gathering stat for stdin: %v\n", err)
+		}
+
+		if si.Mode()&os.ModeCharDevice != 0 {
+			return nil, ErrTerminalInput
+		}
+
+		return source.Wrap(os.Stdin)
+	}
+
+	return source.Open(path)
+}
 
 func run() int {
 	topFlag := flag.Int("top", 0, "display top n endpoints")
@@ -18,26 +36,19 @@ func run() int {
 		fmt.Printf("top %d\n", *topFlag)
 	}
 
-	filePath := flag.Arg(0)
-	if filePath == "" {
-		fmt.Fprintln(os.Stderr, "no file path provided")
-		return 2
-	}
+	path := flag.Arg(0)
+	rc, err := openInput(path)
 
-	rc, err := source.Open(filePath)
 	if err != nil {
-		switch {
-		case errors.Is(err, source.ErrPathIsDir) || errors.Is(err, source.ErrTerminalInput):
-			fmt.Fprintln(os.Stderr, err)
+		fmt.Fprintln(os.Stderr, err) // returned errors already has context
+		if errors.Is(err, source.ErrPathIsDir) || errors.Is(err, ErrTerminalInput) {
 			return 2
-		default:
-			fmt.Fprintf(os.Stderr, "error opening source: %v\n", err)
+		} else {
 			return 1
 		}
-
 	}
 
-	defer rc.Close()
+	defer func() { _ = rc.Close() }()
 
 	return 0
 }

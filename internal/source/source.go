@@ -14,36 +14,29 @@ var gzipMagic = []byte{0x1f, 0x8b}
 
 type stream struct {
 	io.Reader
-	close func() error
+	close  func() error
+	closed bool
 }
 
 func (s *stream) Close() error {
+	if s.closed {
+		return nil
+	}
+
+	s.closed = true
 	return s.close()
 }
 
 func Open(path string) (io.ReadCloser, error) {
-	var file *os.File
-	var err error
-	var closeFn func() error
-	stdin := false
-
-	if path == "-" {
-		file = os.Stdin
-		stdin = true
-		closeFn = func() error { return nil }
-	} else {
-		file, err = os.Open(path)
-		if err != nil {
-			return nil, err // os.PathError already contains enough information
-		}
-
-		closeFn = file.Close
+	file, err := os.Open(path)
+	if err != nil {
+		return nil, err // os.PathError already contains enough information
 	}
 
 	success := false
 	defer func() {
 		if !success {
-			closeFn()
+			file.Close()
 		}
 	}()
 
@@ -52,43 +45,37 @@ func Open(path string) (io.ReadCloser, error) {
 		return nil, fmt.Errorf("gather stat for %s: %w", path, err)
 	}
 
-	if !stdin && fi.IsDir() {
+	if fi.IsDir() {
 		return nil, fmt.Errorf("%s: %w", path, ErrPathIsDir)
 	}
 
-	if stdin && fi.Mode()&os.ModeCharDevice != 0 {
-		return nil, ErrTerminalInput
+	wrapped, err := Wrap(file)
+	if err != nil {
+		return nil, fmt.Errorf("%s: %w", path, err)
 	}
 
-	br := bufio.NewReader(file)
+	success = true
+	return &stream{Reader: wrapped, close: func() error {
+		return errors.Join(wrapped.Close(), file.Close())
+	}}, nil
+}
+
+func Wrap(r io.Reader) (io.ReadCloser, error) {
+	br := bufio.NewReader(r)
 	header, err := br.Peek(2)
 	if err != nil && !errors.Is(err, io.EOF) {
-		return nil, fmt.Errorf("peek %s: %w", path, err)
+		return nil, fmt.Errorf("peek: %w", err)
 	}
 
 	if bytes.HasPrefix(header, gzipMagic) {
 		// the file is gz
-		rc, err := openGzip(br, closeFn)
+		gr, err := gzip.NewReader(br)
 		if err != nil {
-			return nil, err
+			return nil, fmt.Errorf("create gzip reader: %w", err)
 		}
 
-		success = true
-		return rc, nil
+		return &stream{Reader: gr, close: gr.Close}, nil
 	}
 
-	success = true
-
-	return &stream{Reader: br, close: closeFn}, nil
-}
-
-func openGzip(br *bufio.Reader, closeFn func() error) (io.ReadCloser, error) {
-	gr, err := gzip.NewReader(br)
-	if err != nil {
-		return nil, fmt.Errorf("create gzip reader: %w", err)
-	}
-
-	return &stream{Reader: gr, close: func() error {
-		return errors.Join(gr.Close(), closeFn())
-	}}, nil
+	return &stream{Reader: br, close: func() error { return nil }}, nil
 }
