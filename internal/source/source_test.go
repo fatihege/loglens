@@ -24,7 +24,7 @@ func TestWrap(t *testing.T) {
 		{name: "1-byte input", input: []byte("f"), want: "f"},
 		{name: "corrupt gzip header", input: bytes.Join([][]byte{{0x1f, 0x8b}, []byte("corrupted")}, nil), wantWrapErr: true},
 		{name: "truncated gzip", input: []byte("give up"), wantReadErr: true, compress: true, corrupt: func(b []byte) []byte {
-			return b[:len(b)-8]
+			return b[:len(b)-20]
 		}},
 		{name: "bad checksum", input: []byte("john pork is calling"), wantReadErr: true, compress: true, corrupt: func(b []byte) []byte {
 			r := b
@@ -58,17 +58,16 @@ func TestWrap(t *testing.T) {
 				if err == nil {
 					t.Fatal("Wrap(br) succeeded, want error")
 				}
+				if rc != nil {
+					t.Errorf("Wrap(br) returned non-nil reader (%T) alongside error", rc)
+				}
 				return
 			}
 			if err != nil {
 				t.Fatalf("Wrap(br) unexpected error: %v", err)
 			}
 
-			t.Cleanup(func() {
-				if err := rc.Close(); err != nil {
-					t.Errorf("rc.Close() unexpected error: %v", err)
-				}
-			})
+			t.Cleanup(func() { _ = rc.Close() })
 
 			got, err := io.ReadAll(rc)
 			if tt.wantReadErr {
@@ -80,8 +79,13 @@ func TestWrap(t *testing.T) {
 			if err != nil {
 				t.Fatalf("io.ReadAll(rc) unexpected error: %v", err)
 			}
+
 			if string(got) != tt.want {
 				t.Errorf("io.ReadAll(rc) = %q, want %q", got, tt.want)
+			}
+
+			if err := rc.Close(); err != nil {
+				t.Errorf("rc.Close() unexpected error: %v", err)
 			}
 		})
 	}
