@@ -17,8 +17,8 @@ func TestWrap(t *testing.T) {
 		name        string
 		inputs      [][]byte
 		want        string
-		wantWrapErr bool
-		wantReadErr bool
+		wantWrapErr error
+		wantReadErr error
 		compress    bool
 		corrupt     func([]byte) []byte
 	}{
@@ -26,13 +26,13 @@ func TestWrap(t *testing.T) {
 		{name: "valid gzip", inputs: [][]byte{[]byte("this is\na gzip")}, want: "this is\na gzip", compress: true},
 		{name: "empty input", inputs: nil, want: ""},
 		{name: "1-byte input", inputs: [][]byte{[]byte("f")}, want: "f"},
-		{name: "corrupt gzip header", inputs: [][]byte{bytes.Join([][]byte{{0x1f, 0x8b}, []byte("corrupted")}, nil)}, wantWrapErr: true},
-		{name: "truncated gzip", inputs: [][]byte{[]byte("always give up")}, wantReadErr: true, compress: true, corrupt: func(b []byte) []byte {
-			return b[:len(b)-12]
+		{name: "corrupt gzip header", inputs: [][]byte{bytes.Join([][]byte{{0x1f, 0x8b}, []byte("corrupted")}, nil)}, wantWrapErr: gzip.ErrHeader},
+		{name: "truncated gzip", inputs: [][]byte{[]byte("always give up")}, wantReadErr: io.ErrUnexpectedEOF, compress: true, corrupt: func(b []byte) []byte {
+			return b[:len(b)-12] // drop the 8-footer plus part of the deflate stream
 		}},
-		{name: "bad checksum", inputs: [][]byte{[]byte("john pork is calling")}, wantReadErr: true, compress: true, corrupt: func(b []byte) []byte {
+		{name: "bad checksum", inputs: [][]byte{[]byte("john pork is calling")}, wantReadErr: gzip.ErrChecksum, compress: true, corrupt: func(b []byte) []byte {
 			r := slices.Clone(b)
-			r[len(r)-5] ^= 0xFF
+			r[len(r)-5] ^= 0xFF // flip the last byte of the CRC32
 			return r
 		}},
 		{name: "2 gzip members", inputs: [][]byte{[]byte("it rains"), []byte(" milk today")}, want: "it rains milk today", compress: true},
@@ -40,17 +40,17 @@ func TestWrap(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			var input []byte = nil
+			var input []byte
+
 			if len(tt.inputs) > 0 && tt.inputs[0] != nil {
-				input = tt.inputs[0]
-			}
+				for i := 0; i < len(tt.inputs); i++ {
+					current := tt.inputs[i]
 
-			if tt.compress {
-				input = compress(t, input)
+					if tt.compress {
+						current = gzipped(t, current)
+					}
 
-				if len(tt.inputs) > 1 && tt.inputs[1] != nil {
-					second := compress(t, tt.inputs[1])
-					input = bytes.Join([][]byte{input, second}, nil)
+					input = bytes.Join([][]byte{input, current}, nil)
 				}
 			}
 
@@ -60,9 +60,12 @@ func TestWrap(t *testing.T) {
 
 			br := bytes.NewReader(input)
 			rc, err := Wrap(br)
-			if tt.wantWrapErr {
+			if tt.wantWrapErr != nil {
 				if err == nil {
 					t.Fatal("Wrap(br) succeeded, want error")
+				}
+				if !errors.Is(err, tt.wantWrapErr) {
+					t.Fatalf("Wrap(br) returned error %v, want %v", err, tt.wantWrapErr)
 				}
 				if rc != nil {
 					t.Errorf("Wrap(br) returned non-nil reader (%T) alongside error", rc)
@@ -76,9 +79,12 @@ func TestWrap(t *testing.T) {
 			t.Cleanup(func() { _ = rc.Close() })
 
 			got, err := io.ReadAll(rc)
-			if tt.wantReadErr {
+			if tt.wantReadErr != nil {
 				if err == nil {
 					t.Fatalf("io.ReadAll(rc) = %q, want error", got)
+				}
+				if !errors.Is(err, tt.wantReadErr) {
+					t.Fatalf("io.ReadAll(rc) returned error %v, want %v", err, tt.wantReadErr)
 				}
 				return
 			}
@@ -91,10 +97,7 @@ func TestWrap(t *testing.T) {
 			}
 
 			if err := rc.Close(); err != nil {
-				t.Errorf("first rc.Close() unexpected error: %v", err)
-			}
-			if err := rc.Close(); err != nil {
-				t.Errorf("second rc.Close() unexpected error: %v", err)
+				t.Errorf("rc.Close() unexpected error: %v", err)
 			}
 		})
 	}
@@ -115,6 +118,12 @@ func TestOpen(t *testing.T) {
 		{name: "gzipped file with .txt extension", input: []byte("compressed text"), want: "compressed text", path: func(dir string) string {
 			return filepath.Join(dir, "compressed.txt")
 		}, compress: true},
+		{name: "corrupt gzip file", input: bytes.Join([][]byte{{0x1f, 0x8b}, []byte("corrupted")}, nil), wantErr: gzip.ErrHeader, path: func(dir string) string { // input had to be longer than 10 bytes because gzip header is 10 bytes
+			return filepath.Join(dir, "garbage.gz")
+		}},
+		{name: "empty gzip file", input: []byte{}, want: "", path: func(dir string) string {
+			return filepath.Join(dir, "empty.gz")
+		}, compress: true},
 		{name: "directory", wantErr: ErrPathIsDir, path: func(dir string) string {
 			return dir
 		}},
@@ -127,11 +136,11 @@ func TestOpen(t *testing.T) {
 		t.Run(tt.name, func(t *testing.T) {
 			p := tt.path(t.TempDir())
 
-			if tt.wantErr == nil {
+			if tt.input != nil {
 				input := tt.input
 
 				if tt.compress {
-					input = compress(t, input)
+					input = gzipped(t, input)
 				}
 
 				if err := os.WriteFile(p, input, 0o644); err != nil {
@@ -153,6 +162,10 @@ func TestOpen(t *testing.T) {
 				return
 			}
 
+			if rc == nil {
+				t.Fatalf("Open(%q) returned nil reader without error", p)
+			}
+
 			t.Cleanup(func() { _ = rc.Close() })
 
 			got, err := io.ReadAll(rc)
@@ -165,6 +178,50 @@ func TestOpen(t *testing.T) {
 			}
 
 			if err := rc.Close(); err != nil {
+				t.Errorf("rc.Close() unexpected error: %v", err)
+			}
+		})
+	}
+}
+
+func TestReaderClose(t *testing.T) {
+	tests := []struct {
+		name     string
+		compress bool
+		path     func(string) string
+	}{
+		{name: "plain file", path: func(dir string) string {
+			return filepath.Join(dir, "close.txt")
+		}},
+		{name: "gzipped file", compress: true, path: func(dir string) string {
+			return filepath.Join(dir, "close.gzip")
+		}},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			p := tt.path(t.TempDir())
+			d := []byte("whatever ts is")
+
+			if tt.compress {
+				d = gzipped(t, d)
+			}
+
+			if err := os.WriteFile(p, d, 0o644); err != nil {
+				t.Fatalf("os.WriteFile(%q) unexpected error: %v", p, err)
+			}
+
+			rc, err := Open(p)
+			if err != nil {
+				t.Fatalf("Open(%q) unexpected error: %v", p, err)
+			}
+			if rc == nil {
+				t.Fatalf("Open(%q) returned nil reader without error", p)
+			}
+
+			t.Cleanup(func() { _ = rc.Close() })
+
+			if err := rc.Close(); err != nil {
 				t.Errorf("first rc.Close() unexpected error: %v", err)
 			}
 			if err := rc.Close(); err != nil {
@@ -174,17 +231,16 @@ func TestOpen(t *testing.T) {
 	}
 }
 
-func compress(t *testing.T, b []byte) []byte {
+func gzipped(t *testing.T, b []byte) []byte {
 	t.Helper()
 
 	var compressedBuffer bytes.Buffer
 
 	gw := gzip.NewWriter(&compressedBuffer)
-	r := bytes.NewReader(b)
 
-	_, err := io.Copy(gw, r)
+	_, err := gw.Write(b)
 	if err != nil {
-		t.Fatalf("io.Copy(gw, r) unexpected error: %v", err)
+		t.Fatalf("gw.Write(b) unexpected error: %v", err)
 	}
 
 	if err := gw.Close(); err != nil {
