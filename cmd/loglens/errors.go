@@ -3,5 +3,5 @@ package main
 import "errors"
 
 var (
-	ErrTerminalInput = errors.New("no input")
+	ErrNoInput = errors.New("no input")
 )

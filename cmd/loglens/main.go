@@ -15,7 +15,7 @@ func openInput(path string, stdin io.Reader) (io.ReadCloser, error) {
 	if path == "" || path == "-" {
 		if stdin == nil {
 			// nil means no stdin
-			return nil, ErrTerminalInput
+			return nil, ErrNoInput
 		}
 
 		return source.Wrap(stdin)
@@ -49,7 +49,7 @@ func run(args []string, stdin io.Reader, stdout, stderr io.Writer) int {
 	if err != nil {
 		fmt.Fprintln(stderr, err) // returned errors already has context
 
-		if errors.Is(err, source.ErrPathIsDir) || errors.Is(err, ErrTerminalInput) {
+		if errors.Is(err, source.ErrPathIsDir) || errors.Is(err, ErrNoInput) {
 			return 2
 		}
 

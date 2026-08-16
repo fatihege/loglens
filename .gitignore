@@ -2,3 +2,5 @@
 
 benchdata/*
 !benchdata/.gitkeep
+
+cover.out
