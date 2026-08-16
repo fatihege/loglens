@@ -11,37 +11,43 @@ import (
 	"github.com/fatihege/loglens/internal/source"
 )
 
-func openInput(path string) (io.ReadCloser, error) {
+func openInput(path string, stdin io.Reader) (io.ReadCloser, error) {
 	if path == "" || path == "-" {
-		si, err := os.Stdin.Stat()
-		if err != nil {
-			return nil, fmt.Errorf("gather stat for stdin: %w", err)
-		}
-
-		if si.Mode()&os.ModeCharDevice != 0 {
+		if stdin == nil {
+			// nil means no stdin
 			return nil, ErrTerminalInput
 		}
 
-		return source.Wrap(os.Stdin)
+		return source.Wrap(stdin)
 	}
 
 	return source.Open(path)
 }
 
-func run() int {
-	topFlag := flag.Int("top", 0, "display top n endpoints")
+func run(args []string, stdin io.Reader, stdout, stderr io.Writer) int {
+	fset := flag.NewFlagSet("loglens", flag.ContinueOnError)
 
-	flag.Parse()
+	fset.SetOutput(stderr)
 
-	if *topFlag > 0 {
-		fmt.Printf("top %d\n", *topFlag)
+	topFlag := fset.Int("top", 0, "display top n endpoints")
+
+	if err := fset.Parse(args); err != nil {
+		if errors.Is(err, flag.ErrHelp) {
+			return 0
+		}
+
+		return 2
 	}
 
-	path := flag.Arg(0)
-	rc, err := openInput(path)
+	if *topFlag > 0 {
+		fmt.Fprintf(stdout, "top %d\n", *topFlag)
+	}
+
+	path := fset.Arg(0)
+	rc, err := openInput(path, stdin)
 
 	if err != nil {
-		fmt.Fprintln(os.Stderr, err) // returned errors already has context
+		fmt.Fprintln(stderr, err) // returned errors already has context
 
 		if errors.Is(err, source.ErrPathIsDir) || errors.Is(err, ErrTerminalInput) {
 			return 2
@@ -60,15 +66,27 @@ func run() int {
 	}
 
 	if err := s.Err(); err != nil {
-		fmt.Fprintf(os.Stderr, "reading tokens: %v", err)
+		fmt.Fprintf(stderr, "reading tokens: %v\n", err)
 		return 1
 	}
 
-	fmt.Println("read lines", lines)
+	fmt.Fprintln(stdout, "read lines", lines)
 
 	return 0
 }
 
 func main() {
-	os.Exit(run())
+	var input io.Reader = os.Stdin
+	fi, err := os.Stdin.Stat()
+
+	if err != nil {
+		fmt.Fprintf(os.Stderr, "gather stats for stdin: %v\n", err)
+		os.Exit(1)
+	}
+
+	if fi.Mode()&os.ModeCharDevice != 0 {
+		input = nil
+	}
+
+	os.Exit(run(os.Args[1:], input, os.Stdout, os.Stderr))
 }
