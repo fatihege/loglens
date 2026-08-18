@@ -47,7 +47,7 @@ func mapKeys(entry map[string]json.RawMessage) map[string]string {
 }
 
 func mapKey(key string) string {
-	for k, v := range EntryKeys {
+	for k, v := range entryKeys {
 		if slices.Contains(v, key) {
 			return k
 		}
