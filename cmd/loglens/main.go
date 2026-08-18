@@ -8,6 +8,7 @@ import (
 	"os"
 
 	"github.com/fatihege/loglens/internal/lines"
+	"github.com/fatihege/loglens/internal/parse"
 	"github.com/fatihege/loglens/internal/source"
 )
 
@@ -84,18 +85,18 @@ func run(args []string, stdin io.Reader, stdout, stderr io.Writer) int {
 	fmt.Fprintln(stdout, "read lines", count)
 	fmt.Fprintln(stdout, "malformed", malformed)
 
+	jsonParser := parse.NewJSON()
+
+	jsonParser.Do([]byte(`{"time":"2024-10-10T14:03:12.861+03:00","level":"INFO","msg":"request completed","method":"DELETE","path":"/api/products","status":201,"bytes":13455,"duration_ms":1099,"request_id":"01JAXK02","remote_addr":"203.0.113.25"}`))
+
 	return 0
 }
 
 func main() {
-	var input io.Reader = os.Stdin
-	fi, err := os.Stdin.Stat()
+	var input io.Reader
 
-	if err != nil {
-		fmt.Fprintf(os.Stderr, "gather stats for stdin: %v\n", err)
-		input = nil
-	} else if fi.Mode()&os.ModeCharDevice != 0 {
-		input = nil
+	if fi, err := os.Stdin.Stat(); err == nil && fi.Mode()&os.ModeCharDevice == 0 {
+		input = os.Stdin
 	}
 
 	os.Exit(run(os.Args[1:], input, os.Stdout, os.Stderr))
