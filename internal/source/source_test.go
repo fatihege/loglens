@@ -9,6 +9,7 @@ import (
 	"os"
 	"path/filepath"
 	"slices"
+	"strings"
 	"testing"
 )
 
@@ -148,7 +149,7 @@ func TestOpen(t *testing.T) {
 				}
 			}
 
-			rc, err := Open(p)
+			rc, filename, err := Open(p)
 			if tt.wantErr != nil {
 				if err == nil {
 					t.Fatalf("Open(%q) succeeded, want error", p)
@@ -167,6 +168,16 @@ func TestOpen(t *testing.T) {
 			}
 
 			t.Cleanup(func() { _ = rc.Close() })
+
+			if filename == "" {
+				t.Errorf("Open(%q) returned empty filename", p)
+			} else if filename != p {
+				if strings.Contains(p, filename) {
+					t.Errorf("Open(%q) returned substring filename %q", p, filename)
+				} else {
+					t.Errorf("Open(%q) returned filename %q", p, filename)
+				}
+			}
 
 			got, err := io.ReadAll(rc)
 			if err != nil {
@@ -211,7 +222,7 @@ func TestReaderClose(t *testing.T) {
 				t.Fatalf("os.WriteFile(%q) unexpected error: %v", p, err)
 			}
 
-			rc, err := Open(p)
+			rc, filename, err := Open(p)
 			if err != nil {
 				t.Fatalf("Open(%q) unexpected error: %v", p, err)
 			}
@@ -220,6 +231,16 @@ func TestReaderClose(t *testing.T) {
 			}
 
 			t.Cleanup(func() { _ = rc.Close() })
+
+			if filename == "" {
+				t.Errorf("Open(%q) returned empty filename", p)
+			} else if filename != p {
+				if strings.Contains(p, filename) {
+					t.Errorf("Open(%q) returned substring filename %q", p, filename)
+				} else {
+					t.Errorf("Open(%q) returned filename %q", p, filename)
+				}
+			}
 
 			if err := rc.Close(); err != nil {
 				t.Errorf("first rc.Close() unexpected error: %v", err)

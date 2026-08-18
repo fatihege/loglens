@@ -1,7 +1,6 @@
 package source
 
 import (
-	"bufio"
 	"bytes"
 	"compress/gzip"
 	"errors"
@@ -27,10 +26,10 @@ func (s *stream) Close() error {
 	return s.close()
 }
 
-func Open(path string) (io.ReadCloser, error) {
+func Open(path string) (io.ReadCloser, string, error) {
 	file, err := os.Open(path)
 	if err != nil {
-		return nil, err // os.PathError already contains enough information
+		return nil, "", err // os.PathError already contains enough information
 	}
 
 	success := false
@@ -42,34 +41,36 @@ func Open(path string) (io.ReadCloser, error) {
 
 	fi, err := file.Stat()
 	if err != nil {
-		return nil, fmt.Errorf("gather stat for %s: %w", path, err)
+		return nil, "", fmt.Errorf("gather stat for %s: %w", path, err)
 	}
 
 	if fi.IsDir() {
-		return nil, fmt.Errorf("%s: %w", path, ErrPathIsDir)
+		return nil, path, fmt.Errorf("%s: %w", path, ErrPathIsDir)
 	}
 
 	wrapped, err := Wrap(file)
 	if err != nil {
-		return nil, fmt.Errorf("%s: %w", path, err)
+		return nil, path, fmt.Errorf("%s: %w", path, err)
 	}
 
 	success = true
 	return &stream{Reader: wrapped, close: func() error {
 		return errors.Join(wrapped.Close(), file.Close())
-	}}, nil
+	}}, path, nil
 }
 
 func Wrap(r io.Reader) (io.ReadCloser, error) {
-	br := bufio.NewReader(r)
-	header, err := br.Peek(2)
-	if err != nil && !errors.Is(err, io.EOF) {
+	header := make([]byte, 2)
+	n, err := io.ReadFull(r, header)
+	if err != nil && !errors.Is(err, io.EOF) && !errors.Is(err, io.ErrUnexpectedEOF) {
 		return nil, fmt.Errorf("peek: %w", err)
 	}
 
+	mr := io.MultiReader(bytes.NewReader(header[:n]), r)
+
 	if bytes.HasPrefix(header, gzipMagic) {
 		// the file is gz
-		gr, err := gzip.NewReader(br)
+		gr, err := gzip.NewReader(mr)
 		if err != nil {
 			return nil, fmt.Errorf("create gzip reader: %w", err)
 		}
@@ -77,5 +78,5 @@ func Wrap(r io.Reader) (io.ReadCloser, error) {
 		return &stream{Reader: gr, close: gr.Close}, nil
 	}
 
-	return &stream{Reader: br, close: func() error { return nil }}, nil
+	return &stream{Reader: mr, close: func() error { return nil }}, nil
 }
