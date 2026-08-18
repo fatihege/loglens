@@ -1,24 +1,25 @@
 package main
 
 import (
-	"bufio"
 	"errors"
 	"flag"
 	"fmt"
 	"io"
 	"os"
 
+	"github.com/fatihege/loglens/internal/lines"
 	"github.com/fatihege/loglens/internal/source"
 )
 
-func openInput(path string, stdin io.Reader) (io.ReadCloser, error) {
+func openInput(path string, stdin io.Reader) (io.ReadCloser, string, error) {
 	if path == "" || path == "-" {
 		if stdin == nil {
 			// nil means no stdin
-			return nil, ErrNoInput
+			return nil, "", ErrNoInput
 		}
 
-		return source.Wrap(stdin)
+		rc, err := source.Wrap(stdin)
+		return rc, "stdin", err
 	}
 
 	return source.Open(path)
@@ -44,7 +45,7 @@ func run(args []string, stdin io.Reader, stdout, stderr io.Writer) int {
 	}
 
 	path := fset.Arg(0)
-	rc, err := openInput(path, stdin)
+	rc, filename, err := openInput(path, stdin)
 
 	if err != nil {
 		fmt.Fprintln(stderr, err) // returned errors already has context
@@ -58,19 +59,29 @@ func run(args []string, stdin io.Reader, stdout, stderr io.Writer) int {
 
 	defer func() { _ = rc.Close() }()
 
-	s := bufio.NewScanner(rc)
-	lines := 0
+	count := 0
+	malformed := 0
 
-	for s.Scan() {
-		lines++
+	iter := lines.New(rc, filename, 16)
+
+	for {
+		_, err := iter.Next()
+		if errors.Is(err, io.EOF) {
+			break
+		}
+		if errors.Is(err, lines.ErrTooLong) {
+			malformed++
+			fmt.Fprintf(stderr, "%s:%d: %v\n", iter.Name(), iter.Num(), err)
+			continue
+		}
+		if err != nil {
+			return 1
+		}
+		count++
 	}
 
-	if err := s.Err(); err != nil {
-		fmt.Fprintf(stderr, "reading tokens: %v\n", err)
-		return 1
-	}
-
-	fmt.Fprintln(stdout, "read lines", lines)
+	fmt.Fprintln(stdout, "read lines", count)
+	fmt.Fprintln(stdout, "malformed", malformed)
 
 	return 0
 }
