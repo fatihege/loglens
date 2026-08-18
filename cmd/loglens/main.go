@@ -62,7 +62,7 @@ func run(args []string, stdin io.Reader, stdout, stderr io.Writer) int {
 	count := 0
 	malformed := 0
 
-	iter := lines.New(rc, filename, 16)
+	iter := lines.New(rc, filename, 64*1024)
 
 	for {
 		_, err := iter.Next()
