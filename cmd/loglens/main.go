@@ -75,6 +75,7 @@ func run(args []string, stdin io.Reader, stdout, stderr io.Writer) int {
 			continue
 		}
 		if err != nil {
+			fmt.Fprintf(stderr, "%s: %v", iter.Name(), err)
 			return 1
 		}
 		count++
@@ -92,10 +93,8 @@ func main() {
 
 	if err != nil {
 		fmt.Fprintf(os.Stderr, "gather stats for stdin: %v\n", err)
-		os.Exit(1)
-	}
-
-	if fi.Mode()&os.ModeCharDevice != 0 {
+		input = nil
+	} else if fi.Mode()&os.ModeCharDevice != 0 {
 		input = nil
 	}
 
