@@ -23,6 +23,7 @@ func TestIter(t *testing.T) {
 		{name: "escape characters", input: []string{"a\r", "b\r"}, bufferSize: 16, expectedTotal: 2, expectedValid: 2},
 		{name: "no trailing new line", input: []string{"a", "b"}, bufferSize: 16, expectedTotal: 2, expectedValid: 2, noNewLine: true},
 		{name: "over-long line at eof", input: []string{"a", "b", "this will exceed the limit"}, bufferSize: 16, expectedTotal: 3, expectedValid: 2, expectedSkip: 1, noNewLine: true},
+		{name: "empty line in the middle", input: []string{"a", "", "b"}, bufferSize: 16, expectedTotal: 3, expectedValid: 3},
 	}
 
 	for _, tt := range tests {
