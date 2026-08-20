@@ -10,7 +10,6 @@ import (
 type JSON struct {
 	fieldmap  map[FieldMask]string
 	fieldErrs map[FieldMask]int
-	n         int
 }
 
 func NewJSON() *JSON {
