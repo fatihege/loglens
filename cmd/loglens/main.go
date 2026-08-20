@@ -106,12 +106,17 @@ func run(args []string, stdin io.Reader, stdout, stderr io.Writer) int {
 		return pairs[i].Value > pairs[j].Value
 	})
 
-	fmt.Fprintln(stdout, "read lines", count)
-	fmt.Fprintln(stdout, "exceeded", exceed)
-
 	fmt.Fprintln(stdout, "\nstatuses")
 	for _, p := range pairs {
 		fmt.Fprintf(stdout, "%d\t%d\n", p.Key, p.Value)
+	}
+
+	fmt.Fprintln(stdout, "\nread lines", count)
+	fmt.Fprintln(stdout, "exceeded", exceed)
+	fmt.Fprintln(stdout, "")
+
+	for f, e := range j.FieldErrors() {
+		fmt.Fprintf(stderr, "warning: %q unparseable on %v of %v lines (%.2f%%)\n", j.Fieldmap()[f], e, count, float32(e*100)/float32(count))
 	}
 
 	return 0

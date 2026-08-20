@@ -19,6 +19,10 @@ func NewJSON() *JSON {
 	}
 }
 
+func (j *JSON) Fieldmap() map[FieldMask]string {
+	return maps.Clone(j.fieldmap)
+}
+
 func (j *JSON) FieldErrors() map[FieldMask]int {
 	return maps.Clone(j.fieldErrs)
 }
