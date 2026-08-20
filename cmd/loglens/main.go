@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"io"
 	"os"
+	"sort"
 
 	"github.com/fatihege/loglens/internal/lines"
 	"github.com/fatihege/loglens/internal/parse"
@@ -61,33 +62,57 @@ func run(args []string, stdin io.Reader, stdout, stderr io.Writer) int {
 	defer func() { _ = rc.Close() }()
 
 	count := 0
-	malformed := 0
+	exceed := 0
 
 	iter := lines.New(rc, filename, 64*1024)
+	j := parse.NewJSON()
+
+	statuses := make(map[int]int)
 
 	for {
-		_, err := iter.Next()
+		line, err := iter.Next()
 		if errors.Is(err, io.EOF) {
 			break
-		}
-		if errors.Is(err, lines.ErrTooLong) {
-			malformed++
+		} else if errors.Is(err, lines.ErrTooLong) {
+			exceed++
 			fmt.Fprintf(stderr, "%s:%d: %v\n", iter.Name(), iter.Num(), err)
 			continue
-		}
-		if err != nil {
-			fmt.Fprintf(stderr, "%s: %v", iter.Name(), err)
+		} else if err != nil {
+			fmt.Fprintf(stderr, "%s: %v\n", iter.Name(), err)
 			return 1
 		}
+
+		if e, err := j.Parse(line); err != nil {
+			fmt.Fprintf(stderr, "%s:%d: %v\n", iter.Name(), iter.Num(), err)
+		} else if e.Has(parse.FieldStatus) {
+			statuses[e.Status]++
+		}
+
 		count++
 	}
 
+	type pair struct {
+		Key   int
+		Value int
+	}
+
+	pairs := make([]pair, 0, len(statuses))
+
+	for k, v := range statuses {
+		pairs = append(pairs, pair{Key: k, Value: v})
+	}
+
+	sort.Slice(pairs, func(i, j int) bool {
+		return pairs[i].Value > pairs[j].Value
+	})
+
 	fmt.Fprintln(stdout, "read lines", count)
-	fmt.Fprintln(stdout, "malformed", malformed)
+	fmt.Fprintln(stdout, "exceeded", exceed)
 
-	jsonParser := parse.NewJSON()
-
-	jsonParser.Do([]byte(`{"time":"2024-10-10T14:03:12.861+03:00","level":"INFO","msg":"request completed","method":"DELETE","path":"/api/products","status":201,"bytes":13455,"duration_ms":1099,"request_id":"01JAXK02","remote_addr":"203.0.113.25"}`))
+	fmt.Fprintln(stdout, "\nstatuses")
+	for _, p := range pairs {
+		fmt.Fprintf(stdout, "%d\t%d\n", p.Key, p.Value)
+	}
 
 	return 0
 }

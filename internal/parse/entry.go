@@ -2,40 +2,69 @@ package parse
 
 import "time"
 
+type FieldMask uint16
+
+const (
+	FieldTimestamp FieldMask = 1 << iota
+	FieldLevel
+	FieldMessage
+	FieldMethod
+	FieldPath
+	FieldStatus
+	FieldBytes
+	FieldDuration
+	FieldRequestID
+	FieldRemoteAddr
+	FieldUserAgent
+	FieldReferer
+	FieldUser
+	FieldProtocol
+	FieldQuery
+)
+
 type Entry struct {
-	Timestamp     time.Time
-	HasTimestamp  bool
-	Level         string
-	HasLevel      bool
-	Message       string
-	HasMessage    bool
-	Method        string
-	HasMethod     bool
-	Path          string
-	HasPath       bool
-	Status        int
-	HasStatus     bool
-	Bytes         int64
-	HasBytes      bool
-	Duration      time.Duration
-	HasDuration   bool
-	RequestID     string
-	HasRequestID  bool
-	RemoteAddr    string
-	HasRemoteAddr bool
+	Timestamp  time.Time
+	Level      string
+	Message    string
+	Method     string
+	Path       string
+	Status     int
+	Bytes      int64
+	Duration   time.Duration
+	RequestID  string
+	RemoteAddr string
+	UserAgent  string
+	Referer    string
+	User       string
+	Protocol   string
+	Query      string
+	Mask       FieldMask
 }
 
-var entryKeys = map[string][]string{
-	"Timestamp":  {"time", "timestamp", "ts", "@timestamp"},
-	"Level":      {"level"},
-	"Message":    {"msg", "message"},
-	"Method":     {"method", "http_method", "verb"},
-	"Path":       {"path", "url", "uri", "request_path"},
-	"Status":     {"status", "status_code", "http_status", "code"},
-	"Bytes":      {"bytes", "bytes_sent", "body_bytes_sent", "size", "resp_bytes", "content_length"},
-	"Duration":   {"duration_ms", "latency_ms", "duration_us", "duration_ns", "request_time", "upstream_response_time", "duration", "elapsed", "latency"},
-	"RequestID":  {"request_id"},
-	"RemoteAddr": {"remote_addr"},
+func (e *Entry) Mark(field FieldMask) {
+	e.Mask |= field
+}
+
+func (e *Entry) Has(field FieldMask) bool {
+	return e.Mask&field != 0
+}
+
+var fieldAliases = map[FieldMask][]string{
+	FieldTimestamp:  {"time", "timestamp", "ts", "@timestamp"},
+	FieldLevel:      {"level", "severity"},
+	FieldMessage:    {"msg", "message"},
+	FieldMethod:     {"method", "http_method", "verb"},
+	FieldPath:       {"path", "url", "uri", "request_path"},
+	FieldStatus:     {"status", "status_code", "http_status", "code"},
+	FieldBytes:      {"bytes", "bytes_sent", "body_bytes_sent", "size", "resp_bytes", "content_length"},
+	FieldDuration:   {"duration_ms", "latency_ms", "duration_us", "duration_ns", "duration", "elapsed", "latency", "request_time", "upstream_response_time"},
+	FieldRequestID:  {"request_id", "trace_id", "correlation_id"},
+	FieldRemoteAddr: {"remote_addr", "x_forwarded_for", "client_ip"},
+	FieldUserAgent:  {"user_agent", "http_user_agent", "ua"},
+	FieldReferer:    {"referer", "http_referer", "referrer"},
+	FieldUser:       {"user"},
+	FieldProtocol:   {"protocol"},
+	FieldQuery:      {"query"},
 }
 
 var aliasUnits = map[string]time.Duration{
@@ -44,8 +73,8 @@ var aliasUnits = map[string]time.Duration{
 	"duration_us":            time.Microsecond,
 	"duration_ns":            time.Nanosecond,
 	"duration":               time.Millisecond,
+	"elapsed":                time.Millisecond,
+	"latency":                time.Millisecond,
 	"request_time":           time.Second,
 	"upstream_response_time": time.Second,
-	"elapsed":                time.Second,
-	"latency":                time.Second,
 }
