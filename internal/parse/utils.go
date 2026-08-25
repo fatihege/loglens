@@ -20,7 +20,7 @@ func toInt(raw json.RawMessage) (int64, error) {
 
 	err = json.Unmarshal(raw, &n)
 	if err != nil {
-		return 0, fmt.Errorf("%s: %w", truncate(raw), ErrParseInt)
+		return 0, fmt.Errorf("%q: %w", truncate(raw), ErrParseInt)
 	}
 
 	if i, err := n.Int64(); err == nil {
@@ -29,7 +29,7 @@ func toInt(raw json.RawMessage) (int64, error) {
 
 	f, err := n.Float64()
 	if err != nil {
-		return 0, fmt.Errorf("%s: %w", truncate(raw), ErrParseInt)
+		return 0, fmt.Errorf("%q: %w", truncate(raw), ErrParseInt)
 	}
 
 	trunc, frac := math.Modf(f)
@@ -52,13 +52,13 @@ func toString(raw json.RawMessage) (string, error) {
 	}
 
 	if raw[0] != '"' {
-		return "", fmt.Errorf("%s: %w", truncate(raw), ErrParseString)
+		return "", fmt.Errorf("%q: %w", truncate(raw), ErrParseString)
 	}
 
 	var s string
 	err = json.Unmarshal(raw, &s)
 	if err != nil {
-		return "", fmt.Errorf("%s: %w", truncate(raw), ErrParseString)
+		return "", fmt.Errorf("%q: %w", truncate(raw), ErrParseString)
 	}
 
 	return s, nil
@@ -80,7 +80,7 @@ func toTime(raw json.RawMessage) (time.Time, error) {
 		if err != nil {
 			f, err := n.Float64()
 			if err != nil {
-				return time.Time{}, fmt.Errorf("%s: %w", truncate(raw), ErrParseTime)
+				return time.Time{}, fmt.Errorf("%q: %w", truncate(raw), ErrParseTime)
 			}
 
 			var trunc float64
@@ -121,7 +121,7 @@ func toTime(raw json.RawMessage) (time.Time, error) {
 	var s string
 	err = json.Unmarshal(raw, &s)
 	if err != nil {
-		return time.Time{}, fmt.Errorf("%s: %w", truncate(raw), ErrParseTime)
+		return time.Time{}, fmt.Errorf("%q: %w", truncate(raw), ErrParseTime)
 	}
 
 	layouts := []string{
@@ -152,20 +152,20 @@ func toDuration(raw json.RawMessage, unit time.Duration) (time.Duration, error) 
 		var s string
 		err := json.Unmarshal(raw, &s)
 		if err != nil {
-			return 0, fmt.Errorf("%s: %w", truncate(raw), ErrParseDuration)
+			return 0, fmt.Errorf("%q: %w", truncate(raw), ErrParseDuration)
 		}
 
 		duration, err = time.ParseDuration(s)
 		if err != nil {
 			f, e := strconv.ParseFloat(s, 64)
 			if e != nil {
-				return 0, fmt.Errorf("%s: %w", truncate(raw), ErrParseDuration)
+				return 0, fmt.Errorf("%q: %w", truncate(raw), ErrParseDuration)
 			}
 
 			durationFloat := f * float64(unit)
 
-			if err := checkInt64Range(durationFloat); err != nil {
-				return 0, err
+			if e := checkInt64Range(durationFloat); e != nil {
+				return 0, e
 			}
 
 			duration = time.Duration(durationFloat)
@@ -173,7 +173,7 @@ func toDuration(raw json.RawMessage, unit time.Duration) (time.Duration, error) 
 	} else {
 		f, err := n.Float64()
 		if err != nil {
-			return 0, fmt.Errorf("%s: %w", truncate(raw), ErrParseDuration)
+			return 0, fmt.Errorf("%q: %w", truncate(raw), ErrParseDuration)
 		}
 
 		durationFloat := f * float64(unit)
@@ -186,7 +186,7 @@ func toDuration(raw json.RawMessage, unit time.Duration) (time.Duration, error) 
 	}
 
 	if duration < 0 {
-		return 0, fmt.Errorf("%s: %w", truncate(raw), ErrNegativeDuration)
+		return 0, fmt.Errorf("%q: %w", truncate(raw), ErrNegativeDuration)
 	}
 
 	return duration, nil
@@ -200,7 +200,7 @@ func checkRaw(raw json.RawMessage) (json.RawMessage, error) {
 	}
 
 	if bytes.Equal(raw, []byte("null")) {
-		return nil, fmt.Errorf("%s: %w", truncate(raw), ErrNull)
+		return nil, fmt.Errorf("%q: %w", truncate(raw), ErrNull)
 	}
 
 	return raw, nil
