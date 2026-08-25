@@ -3,6 +3,7 @@ package parse
 import (
 	"bytes"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"math"
 	"strconv"
@@ -29,6 +30,9 @@ func toInt(raw json.RawMessage) (int64, error) {
 
 	f, err := n.Float64()
 	if err != nil {
+		if errors.Is(err, strconv.ErrRange) {
+			return 0, fmt.Errorf("%q: %w", truncate(raw), ErrIntOutOfRange)
+		}
 		return 0, fmt.Errorf("%q: %w", truncate(raw), ErrParseInt)
 	}
 
