@@ -1,6 +1,7 @@
 package main
 
 import (
+	"bytes"
 	"errors"
 	"flag"
 	"fmt"
@@ -61,8 +62,7 @@ func run(args []string, stdin io.Reader, stdout, stderr io.Writer) int {
 
 	defer func() { _ = rc.Close() }()
 
-	count := 0
-	exceed := 0
+	count, parsed, malformed := 0, 0, 0
 
 	iter := lines.New(rc, filename, 64*1024)
 	j := parse.NewJSON()
@@ -74,7 +74,7 @@ func run(args []string, stdin io.Reader, stdout, stderr io.Writer) int {
 		if errors.Is(err, io.EOF) {
 			break
 		} else if errors.Is(err, lines.ErrTooLong) {
-			exceed++
+			malformed++
 			fmt.Fprintf(stderr, "%s:%d: %v\n", iter.Name(), iter.Num(), err)
 			continue
 		} else if err != nil {
@@ -82,10 +82,14 @@ func run(args []string, stdin io.Reader, stdout, stderr io.Writer) int {
 			return 1
 		}
 
-		if e, err := j.Parse(line); err != nil {
+		if e, err := j.Parse(line); bytes.HasPrefix(line, []byte("{")) && err != nil {
 			fmt.Fprintf(stderr, "%s:%d: %v\n", iter.Name(), iter.Num(), err)
+			malformed++
 		} else if e.Has(parse.FieldStatus) {
 			statuses[e.Status]++
+			parsed++
+		} else {
+			malformed++
 		}
 
 		count++
@@ -103,7 +107,11 @@ func run(args []string, stdin io.Reader, stdout, stderr io.Writer) int {
 	}
 
 	sort.Slice(pairs, func(i, j int) bool {
-		return pairs[i].Value > pairs[j].Value
+		if pairs[i].Value != pairs[j].Value {
+			return pairs[i].Value > pairs[j].Value
+		}
+
+		return pairs[i].Key < pairs[j].Key
 	})
 
 	fmt.Fprintln(stdout, "\nstatuses")
@@ -112,11 +120,13 @@ func run(args []string, stdin io.Reader, stdout, stderr io.Writer) int {
 	}
 
 	fmt.Fprintln(stdout, "\nread lines", count)
-	fmt.Fprintln(stdout, "exceeded", exceed)
+	fmt.Fprintln(stdout, "parsed", parsed)
+	fmt.Fprintln(stdout, "malformed", malformed)
 	fmt.Fprintln(stdout, "")
 
+	fm := j.Fieldmap()
 	for f, e := range j.FieldErrors() {
-		fmt.Fprintf(stderr, "warning: %q unparseable on %v of %v lines (%.2f%%)\n", j.Fieldmap()[f], e, count, float32(e*100)/float32(count))
+		fmt.Fprintf(stderr, "warning: %q unparseable on %v of %v lines (%.2f%%)\n", fm[f], e, count, float32(e*100)/float32(count))
 	}
 
 	return 0
