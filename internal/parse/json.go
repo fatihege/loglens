@@ -2,6 +2,7 @@ package parse
 
 import (
 	"encoding/json"
+	"errors"
 	"fmt"
 	"maps"
 	"time"
@@ -78,7 +79,9 @@ func (j *JSON) buildEntry(raw map[string]json.RawMessage) (Entry, error) {
 		r, rawOK := raw[timestampKey]
 		if rawOK {
 			timestamp, err := toTime(r)
-			if err != nil {
+			if errors.Is(err, ErrNull) {
+				valid++
+			} else if err != nil {
 				j.fieldErrs[FieldTimestamp]++
 			} else {
 				entry.Timestamp = timestamp
