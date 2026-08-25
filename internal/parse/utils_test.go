@@ -4,6 +4,7 @@ import (
 	"encoding/json"
 	"errors"
 	"math"
+	"strings"
 	"testing"
 	"time"
 )
@@ -256,6 +257,30 @@ func TestToDuration(t *testing.T) {
 
 			if got != tt.want {
 				t.Errorf("toDuration(%q) = %v, want %v", raw, got, tt.want)
+			}
+		})
+	}
+}
+
+func TestTruncate(t *testing.T) {
+	tests := []struct {
+		name  string
+		input func() string
+		want  func() string
+	}{
+		{name: "valid", input: func() string { return "abc" }, want: func() string { return "abc" }},
+		{name: "empty", input: func() string { return "" }, want: func() string { return "" }},
+		{name: "out of range", input: func() string { return strings.Repeat("a", 72) }, want: func() string { return strings.Repeat("a", 64) + "..." }},
+		{name: "multi-byte rune", input: func() string { return strings.Repeat("a", 63) + "🎉" }, want: func() string { return strings.Repeat("a", 63) + "..." }},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			input := tt.input()
+			raw := json.RawMessage(input)
+			want := tt.want()
+			if got := truncate(raw); string(got) != want {
+				t.Errorf("truncate(%q) = %q, want %q", input, got, want)
 			}
 		})
 	}
