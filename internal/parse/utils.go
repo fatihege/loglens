@@ -130,8 +130,10 @@ func toTime(raw json.RawMessage) (time.Time, error) {
 
 	layouts := []string{
 		time.RFC3339, // this type handles fractional seconds, so there is no need to the nano variant
-		"2006-01-02 15:04:05",
+		"2006-01-02 15:04:05Z07:00",
 		"2006-01-02T15:04:05",
+		"2006-01-02 15:04:05",
+		"02/Jan/2006:15:04:05 -0700",
 	}
 
 	for _, l := range layouts {
