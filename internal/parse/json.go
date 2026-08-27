@@ -97,7 +97,10 @@ func (j *JSON) buildEntry(raw map[string]json.RawMessage) (Entry, error) {
 			r, rawOK := raw[key]
 			if rawOK {
 				v, err := toString(r)
-				if err != nil {
+				if errors.Is(err, ErrNull) {
+					valid++
+					continue
+				} else if err != nil {
 					j.fieldErrs[f.mask]++
 					continue
 				}
@@ -114,7 +117,9 @@ func (j *JSON) buildEntry(raw map[string]json.RawMessage) (Entry, error) {
 		r, rawOK := raw[statusKey]
 		if rawOK {
 			status, err := toInt(r)
-			if err != nil || status < 100 || status > 599 {
+			if errors.Is(err, ErrNull) {
+				valid++
+			} else if err != nil || status < 100 || status > 599 {
 				j.fieldErrs[FieldStatus]++
 			} else {
 				entry.Status = int(status)
@@ -129,7 +134,9 @@ func (j *JSON) buildEntry(raw map[string]json.RawMessage) (Entry, error) {
 		r, rawOK := raw[bytesKey]
 		if rawOK {
 			bytes, err := toInt(r)
-			if err != nil || bytes < 0 {
+			if errors.Is(err, ErrNull) {
+				valid++
+			} else if err != nil || bytes < 0 {
 				j.fieldErrs[FieldBytes]++
 			} else {
 				entry.Bytes = bytes
@@ -150,7 +157,9 @@ func (j *JSON) buildEntry(raw map[string]json.RawMessage) (Entry, error) {
 			}
 
 			duration, err := toDuration(r, unit)
-			if err != nil {
+			if errors.Is(err, ErrNull) {
+				valid++
+			} else if err != nil {
 				j.fieldErrs[FieldDuration]++
 			} else {
 				entry.Duration = duration
