@@ -147,8 +147,8 @@ func TestToTime(t *testing.T) {
 		{name: "float millisecond", input: "133532235323.25", want: func() time.Time { return time.UnixMilli(133532235323).Add(250 * time.Microsecond) }},
 		{name: "float second", input: "133532235.25", want: func() time.Time { return time.Unix(133532235, int64(250*time.Millisecond)) }},
 		{name: "negative float millisecond", input: "-133532235323.25", want: func() time.Time { return time.UnixMilli(-133532235323).Add(-250 * time.Microsecond) }},
-		{name: "float out of max range", input: "1e500", wantErr: ErrParseTime},
-		{name: "float out of min range", input: "-1e500", wantErr: ErrParseTime},
+		{name: "float out of max range", input: "1e500", wantErr: ErrIntOutOfRange},
+		{name: "float out of min range", input: "-1e500", wantErr: ErrIntOutOfRange},
 		{name: "string with timezone", input: "\"2026-08-25 22:42:17+03:00\"", want: func() time.Time {
 			t, _ := time.Parse("2006-01-02 15:04:05Z07:00", "2026-08-25 22:42:17+03:00")
 			return t
@@ -220,12 +220,12 @@ func TestToDuration(t *testing.T) {
 		{name: "int us", input: "24", unit: time.Microsecond, want: 24 * time.Microsecond},
 		{name: "negative", input: "-24", unit: time.Millisecond, wantErr: ErrNegativeDuration},
 		{name: "float", input: "24.4", unit: time.Millisecond, want: 24400 * time.Microsecond},
-		{name: "int out of range", input: "1e500", unit: time.Microsecond, wantErr: ErrParseDuration},
+		{name: "int out of range", input: "1e500", unit: time.Microsecond, wantErr: ErrIntOutOfRange},
 		{name: "valid string with unit", input: "\"24ms\"", unit: time.Second, want: 24 * time.Millisecond},
 		{name: "string with surrounding spaces", input: " \"2m5s\" ", unit: time.Second, want: 2*time.Minute + 5*time.Second},
 		{name: "string number without fraction", input: "\"24\"", unit: time.Second, want: 24 * time.Second},
 		{name: "string number with fraction", input: "\"24.4\"", unit: time.Second, want: 24400 * time.Millisecond},
-		{name: "string number out of range", input: "\"1e500\"", unit: time.Second, wantErr: ErrParseDuration},
+		{name: "string number out of range", input: "\"1e500\"", unit: time.Second, wantErr: ErrIntOutOfRange},
 		{name: "negative string number", input: "\"-24\"", unit: time.Second, wantErr: ErrNegativeDuration},
 		{name: "us from ms", input: "0.024", unit: time.Millisecond, want: 24 * time.Microsecond},
 		{name: "zero", input: "0", unit: time.Millisecond, want: 0},
