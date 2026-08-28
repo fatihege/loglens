@@ -179,10 +179,7 @@ func assign[T any](
 	v, err := conv(r)
 	if errors.Is(err, ErrNull) {
 		return true
-	} else if rejected(v, err) {
-		j.fieldErrs[mask]++
-		return true
-	} else if err != nil {
+	} else if err != nil || rejected(v, err) {
 		j.fieldErrs[mask]++
 		return true
 	}
