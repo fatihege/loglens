@@ -72,118 +72,122 @@ var stringFields = []struct {
 
 func (j *JSON) buildEntry(raw map[string]json.RawMessage) (Entry, error) {
 	var entry Entry
-	valid := 0 // means the type is correct, even if the value is wrong
+	valid := false
 
-	timestampKey, ok := j.fieldmap[FieldTimestamp]
-	if ok {
-		r, rawOK := raw[timestampKey]
-		if rawOK {
-			timestamp, err := toTime(r)
-			if errors.Is(err, ErrNull) {
-				valid++
-			} else if errors.Is(err, ErrIntOutOfRange) {
-				valid++
-				j.fieldErrs[FieldTimestamp]++
-			} else if err != nil {
-				j.fieldErrs[FieldTimestamp]++
-			} else {
-				entry.Timestamp = timestamp
-				entry.Mark(FieldTimestamp)
-				valid++
-			}
-		}
+	if assign(
+		j,
+		&entry,
+		raw,
+		FieldTimestamp,
+		toTime,
+		func(_ time.Time, err error) bool { return errors.Is(err, ErrIntOutOfRange) },
+		&entry.Timestamp,
+	) {
+		valid = true
 	}
 
 	for _, f := range stringFields {
-		key, ok := j.fieldmap[f.mask]
-		if ok {
-			r, rawOK := raw[key]
-			if rawOK {
-				v, err := toString(r)
-				if errors.Is(err, ErrNull) {
-					valid++
-					continue
-				} else if err != nil {
-					j.fieldErrs[f.mask]++
-					continue
-				}
-
-				*f.dest(&entry) = v
-				entry.Mark(f.mask)
-				valid++
-			}
+		if assign(
+			j,
+			&entry,
+			raw,
+			f.mask,
+			toString,
+			func(v string, err error) bool { return false },
+			f.dest(&entry),
+		) {
+			valid = true
 		}
 	}
 
-	statusKey, ok := j.fieldmap[FieldStatus]
-	if ok {
-		r, rawOK := raw[statusKey]
-		if rawOK {
-			status, err := toInt(r)
-			if errors.Is(err, ErrNull) {
-				valid++
-			} else if errors.Is(err, ErrIntOutOfRange) || (err == nil && (status < 100 || status > 599)) {
-				valid++
-				j.fieldErrs[FieldStatus]++
-			} else if err != nil {
-				j.fieldErrs[FieldStatus]++
-			} else {
-				entry.Status = int(status)
-				entry.Mark(FieldStatus)
-				valid++
-			}
-		}
+	if assign(
+		j,
+		&entry,
+		raw,
+		FieldStatus,
+		func(r json.RawMessage) (int, error) { i, err := toInt(r); return int(i), err },
+		func(v int, err error) bool {
+			return errors.Is(err, ErrIntOutOfRange) || (err == nil && (v < 100 || v > 599))
+		},
+		&entry.Status,
+	) {
+		valid = true
 	}
 
-	bytesKey, ok := j.fieldmap[FieldBytes]
-	if ok {
-		r, rawOK := raw[bytesKey]
-		if rawOK {
-			bytes, err := toInt(r)
-			if errors.Is(err, ErrNull) {
-				valid++
-			} else if errors.Is(err, ErrIntOutOfRange) || (err == nil && bytes < 0) {
-				valid++
-				j.fieldErrs[FieldBytes]++
-			} else if err != nil {
-				j.fieldErrs[FieldBytes]++
-			} else {
-				entry.Bytes = bytes
-				entry.Mark(FieldBytes)
-				valid++
-			}
-		}
+	if assign(
+		j,
+		&entry,
+		raw,
+		FieldBytes,
+		toInt,
+		func(v int64, err error) bool {
+			return errors.Is(err, ErrIntOutOfRange) || (err == nil && v < 0)
+		},
+		&entry.Bytes,
+	) {
+		valid = true
 	}
 
 	durationKey, ok := j.fieldmap[FieldDuration]
 	if ok {
-		r, rawOK := raw[durationKey]
+		unit, ok := aliasUnits[durationKey]
+		if !ok {
+			unit = time.Millisecond
+		}
 
-		if rawOK {
-			unit, ok := aliasUnits[durationKey]
-			if !ok {
-				unit = time.Millisecond
-			}
-
-			duration, err := toDuration(r, unit)
-			if errors.Is(err, ErrNull) {
-				valid++
-			} else if errors.Is(err, ErrIntOutOfRange) || errors.Is(err, ErrNegativeDuration) {
-				valid++
-				j.fieldErrs[FieldDuration]++
-			} else if err != nil {
-				j.fieldErrs[FieldDuration]++
-			} else {
-				entry.Duration = duration
-				entry.Mark(FieldDuration)
-				valid++
-			}
+		if assign(
+			j,
+			&entry,
+			raw,
+			FieldDuration,
+			func(r json.RawMessage) (time.Duration, error) { return toDuration(r, unit) },
+			func(_ time.Duration, err error) bool {
+				return errors.Is(err, ErrIntOutOfRange) || errors.Is(err, ErrNegativeDuration)
+			},
+			&entry.Duration,
+		) {
+			valid = true
 		}
 	}
 
-	if valid < 1 {
+	if !valid {
 		return Entry{}, ErrMalformedLine
 	}
 
 	return entry, nil
+}
+
+func assign[T any](
+	j *JSON,
+	e *Entry,
+	raw map[string]json.RawMessage,
+	mask FieldMask,
+	conv func(json.RawMessage) (T, error),
+	rejected func(T, error) bool,
+	dest *T,
+) bool { // returning true means type was correct rather than field was set
+	key, ok := j.fieldmap[mask]
+	if !ok {
+		return false
+	}
+
+	r, ok := raw[key]
+	if !ok {
+		return false
+	}
+
+	v, err := conv(r)
+	if errors.Is(err, ErrNull) {
+		return true
+	} else if rejected(v, err) {
+		j.fieldErrs[mask]++
+		return true
+	} else if err != nil {
+		j.fieldErrs[mask]++
+		return false
+	}
+
+	*dest = v
+	e.Mark(mask)
+	return true
 }
