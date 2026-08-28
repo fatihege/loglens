@@ -157,6 +157,16 @@ func TestJSON(t *testing.T) {
 			wantErr: []error{nil, ErrMalformedLine},
 		},
 		{
+			name:  "4 valid fields",
+			input: [][]byte{[]byte("{\"level\":\"INFO\",\"status\":200,\"bytes\":24,\"duration_ms\":5}")},
+			check: []func(*Entry, *JSON) (bool, string){
+				func(e *Entry, _ *JSON) (bool, string) {
+					return e.Level == "INFO" && e.Status == 200 && e.Bytes == 24 && e.Duration == 5*time.Millisecond,
+						"e.Level == \"INFO\" && e.Status == 200 && e.Bytes == 24 && e.Duration == 5ms"
+				},
+			},
+		},
+		{
 			name:  "duration ms",
 			input: [][]byte{[]byte("{\"duration_ms\":24}")},
 			check: []func(*Entry, *JSON) (bool, string){
