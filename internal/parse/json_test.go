@@ -15,7 +15,7 @@ func TestJSON(t *testing.T) {
 	}{
 		{
 			name:    "empty",
-			input:   nil,
+			input:   [][]byte{nil},
 			wantErr: []error{ErrMalformedLine},
 		},
 		{
@@ -58,7 +58,7 @@ func TestJSON(t *testing.T) {
 		},
 		{
 			name:    "capitalized alias",
-			input:   [][]byte{[]byte("{\"Status\":200")},
+			input:   [][]byte{[]byte("{\"Status\":200}")},
 			wantErr: []error{ErrMalformedLine},
 		},
 		{
@@ -253,7 +253,7 @@ func TestJSON(t *testing.T) {
 					if !errors.Is(err, wantErr) {
 						t.Errorf("j.Parse(%q) returned error %v, want %v", line, err, wantErr)
 					}
-					return
+					continue
 				} else if err != nil {
 					t.Fatalf("j.Parse(%q) unexpected error: %v", line, err)
 				}
