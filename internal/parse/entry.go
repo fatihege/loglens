@@ -49,6 +49,25 @@ func (e *Entry) Has(field FieldMask) bool {
 	return e.Mask&field != 0
 }
 
+func (e *Entry) IsEmpty() bool {
+	return e.Timestamp.IsZero() &&
+		e.Level == "" &&
+		e.Message == "" &&
+		e.Method == "" &&
+		e.Path == "" &&
+		e.Status == 0 &&
+		e.Bytes == 0 &&
+		e.Duration == 0 &&
+		e.RequestID == "" &&
+		e.RemoteAddr == "" &&
+		e.UserAgent == "" &&
+		e.Referer == "" &&
+		e.User == "" &&
+		e.Protocol == "" &&
+		e.Query == "" &&
+		e.Mask == 0
+}
+
 var fieldAliases = map[FieldMask][]string{
 	FieldTimestamp:  {"time", "timestamp", "ts", "@timestamp"},
 	FieldLevel:      {"level", "severity"},
