@@ -11,12 +11,14 @@ import (
 type JSON struct {
 	fieldmap  map[FieldMask]string
 	fieldErrs map[FieldMask]int
+	fieldSeen map[FieldMask]int
 }
 
 func NewJSON() *JSON {
 	return &JSON{
 		fieldmap:  make(map[FieldMask]string),
 		fieldErrs: make(map[FieldMask]int),
+		fieldSeen: make(map[FieldMask]int),
 	}
 }
 
@@ -26,6 +28,10 @@ func (j *JSON) Fieldmap() map[FieldMask]string {
 
 func (j *JSON) FieldErrors() map[FieldMask]int {
 	return maps.Clone(j.fieldErrs)
+}
+
+func (j *JSON) FieldSeen() map[FieldMask]int {
+	return maps.Clone(j.fieldSeen)
 }
 
 func (j *JSON) Parse(line []byte) (Entry, error) {
@@ -175,6 +181,8 @@ func assign[T any](
 	if !ok {
 		return false
 	}
+
+	j.fieldSeen[mask]++
 
 	v, err := conv(r)
 	if errors.Is(err, ErrNull) {
