@@ -1,7 +1,6 @@
 package main
 
 import (
-	"bytes"
 	"errors"
 	"flag"
 	"fmt"
@@ -62,7 +61,7 @@ func run(args []string, stdin io.Reader, stdout, stderr io.Writer) int {
 
 	defer func() { _ = rc.Close() }()
 
-	count, parsed, malformed := 0, 0, 0
+	read, request, malformed, unrecognized, skipped := 0, 0, 0, 0, 0
 
 	iter := lines.New(rc, filename, 64*1024)
 	j := parse.NewJSON()
@@ -82,17 +81,23 @@ func run(args []string, stdin io.Reader, stdout, stderr io.Writer) int {
 			return 1
 		}
 
-		if e, err := j.Parse(line); bytes.HasPrefix(line, []byte("{")) && err != nil {
+		e, err := j.Parse(line)
+		if err != nil && !errors.Is(err, parse.ErrUnrecognized) {
 			fmt.Fprintf(stderr, "%s:%d: %v\n", iter.Name(), iter.Num(), err)
 			malformed++
-		} else if e.Has(parse.FieldStatus) {
-			statuses[e.Status]++
-			parsed++
+		} else if errors.Is(err, parse.ErrUnrecognized) {
+			unrecognized++
+		} else if !e.IsRequest() {
+			skipped++
 		} else {
-			malformed++
+			request++
+
+			if e.Has(parse.FieldStatus) {
+				statuses[e.Status]++
+			}
 		}
 
-		count++
+		read++
 	}
 
 	type pair struct {
@@ -114,25 +119,32 @@ func run(args []string, stdin io.Reader, stdout, stderr io.Writer) int {
 		return pairs[i].Key < pairs[j].Key
 	})
 
-	fmt.Fprintln(stdout, "\nstatuses")
-	for _, p := range pairs {
-		fmt.Fprintf(stdout, "%d\t%d\n", p.Key, p.Value)
+	if len(pairs) > 0 {
+		fmt.Fprintln(stdout, "\nstatuses")
+
+		for _, p := range pairs {
+			fmt.Fprintf(stdout, "%d\t%d\n", p.Key, p.Value)
+		}
 	}
 
-	fmt.Fprintln(stdout, "\nread lines", count)
-	fmt.Fprintln(stdout, "parsed", parsed)
-	fmt.Fprintln(stdout, "malformed", malformed)
-	fmt.Fprintln(stdout, "")
+	fmt.Fprintf(stdout, `
+  read lines %d
+    requests %d
+non-requests %d
+unrecognized %d
+   malformed %d
+
+`, read, request, skipped, unrecognized, malformed)
 
 	fm := j.Fieldmap()
 	for f, e := range j.FieldErrors() {
 		fmt.Fprintf(
 			stderr,
-			"warning: %q unparseable on %v of %v lines (%.2f%%)\n",
+			"warning: %q unparseable on %d of %d lines (%.2f%%)\n",
 			fm[f],
 			e,
-			count,
-			float32(e*100)/float32(count),
+			read,
+			float32(e*100)/float32(read),
 		)
 	}
 
