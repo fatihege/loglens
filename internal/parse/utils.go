@@ -56,7 +56,7 @@ func toString(raw json.RawMessage) (string, error) {
 	}
 
 	if raw[0] != '"' {
-		return "", fmt.Errorf("%q: %w", truncate(raw), ErrParseString)
+		return "", fmt.Errorf("%q: %w", truncate(raw), ErrNotString)
 	}
 
 	var s string
