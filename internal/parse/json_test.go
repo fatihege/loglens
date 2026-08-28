@@ -267,7 +267,7 @@ func TestJSON(t *testing.T) {
 					if err == nil {
 						t.Fatalf("j.Parse(%q) succeeded, want error", line)
 					}
-					if !e.IsEmpty() {
+					if e.Mask != 0 {
 						t.Errorf("j.Parse(%q) returned non-empty entry alongside error", line)
 					}
 					if !errors.Is(err, wantErr) {

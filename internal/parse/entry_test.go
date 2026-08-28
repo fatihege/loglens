@@ -4,11 +4,10 @@ import "testing"
 
 func TestEntry(t *testing.T) {
 	wantField := true
-	wantEmpty := true
 	var e Entry
 
-	if got := e.IsEmpty(); got != wantEmpty {
-		t.Errorf("e.IsEmpty() = %v, want %v", got, wantEmpty)
+	if e.Mask != 0 {
+		t.Errorf("e.Mask = %v, want %v", e.Mask, 0)
 	}
 
 	e.Level = "TEST"
@@ -18,8 +17,7 @@ func TestEntry(t *testing.T) {
 		t.Errorf("e.Has(Level) = %v, want %v", got, wantField)
 	}
 
-	wantEmpty = false
-	if got := e.IsEmpty(); got != wantEmpty {
-		t.Errorf("e.IsEmpty() = %v, want %v", got, wantEmpty)
+	if e.Mask == 0 {
+		t.Errorf("e.Mask = %v, want non-zero", e.Mask)
 	}
 }
