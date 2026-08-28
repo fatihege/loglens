@@ -72,7 +72,7 @@ var stringFields = []struct {
 
 func (j *JSON) buildEntry(raw map[string]json.RawMessage) (Entry, error) {
 	var entry Entry
-	valid := 0
+	valid := 0 // means the type is correct, even if the value is wrong
 
 	timestampKey, ok := j.fieldmap[FieldTimestamp]
 	if ok {
@@ -122,7 +122,7 @@ func (j *JSON) buildEntry(raw map[string]json.RawMessage) (Entry, error) {
 			status, err := toInt(r)
 			if errors.Is(err, ErrNull) {
 				valid++
-			} else if errors.Is(err, ErrIntOutOfRange) || status < 100 || status > 599 {
+			} else if errors.Is(err, ErrIntOutOfRange) || (err == nil && (status < 100 || status > 599)) {
 				valid++
 				j.fieldErrs[FieldStatus]++
 			} else if err != nil {
@@ -142,7 +142,7 @@ func (j *JSON) buildEntry(raw map[string]json.RawMessage) (Entry, error) {
 			bytes, err := toInt(r)
 			if errors.Is(err, ErrNull) {
 				valid++
-			} else if errors.Is(err, ErrIntOutOfRange) || bytes < 0 {
+			} else if errors.Is(err, ErrIntOutOfRange) || (err == nil && bytes < 0) {
 				valid++
 				j.fieldErrs[FieldBytes]++
 			} else if err != nil {
