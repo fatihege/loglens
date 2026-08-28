@@ -126,7 +126,14 @@ func run(args []string, stdin io.Reader, stdout, stderr io.Writer) int {
 
 	fm := j.Fieldmap()
 	for f, e := range j.FieldErrors() {
-		fmt.Fprintf(stderr, "warning: %q unparseable on %v of %v lines (%.2f%%)\n", fm[f], e, count, float32(e*100)/float32(count))
+		fmt.Fprintf(
+			stderr,
+			"warning: %q unparseable on %v of %v lines (%.2f%%)\n",
+			fm[f],
+			e,
+			count,
+			float32(e*100)/float32(count),
+		)
 	}
 
 	return 0

@@ -138,15 +138,33 @@ func TestToTime(t *testing.T) {
 		{name: "boolean", input: "true", wantErr: ErrParseTime},
 		{name: "array", input: "[]", wantErr: ErrParseTime},
 		{name: "object", input: "{}", wantErr: ErrParseTime},
-		{name: "int nanosecond", input: "133532235323343554", want: func() time.Time { return time.Unix(0, 133532235323343554) }},
-		{name: "int microsecond", input: "133532235323343", want: func() time.Time { return time.UnixMicro(133532235323343) }},
-		{name: "int millisecond", input: "133532235323", want: func() time.Time { return time.UnixMilli(133532235323) }},
-		{name: "int second", input: "133532235", want: func() time.Time { return time.Unix(133532235, 0) }},
-		{name: "negative int millisecond", input: "-133532235323", want: func() time.Time { return time.UnixMilli(-133532235323) }},
-		{name: "float microsecond", input: "133532235323343.25", want: func() time.Time { return time.UnixMicro(133532235323343).Add(250 * time.Nanosecond) }}, // used .25 because it is exactly reprasantable in binary (2^-2)
-		{name: "float millisecond", input: "133532235323.25", want: func() time.Time { return time.UnixMilli(133532235323).Add(250 * time.Microsecond) }},
-		{name: "float second", input: "133532235.25", want: func() time.Time { return time.Unix(133532235, int64(250*time.Millisecond)) }},
-		{name: "negative float millisecond", input: "-133532235323.25", want: func() time.Time { return time.UnixMilli(-133532235323).Add(-250 * time.Microsecond) }},
+		{name: "int nanosecond", input: "133532235323343554", want: func() time.Time {
+			return time.Unix(0, 133532235323343554)
+		}},
+		{name: "int microsecond", input: "133532235323343", want: func() time.Time {
+			return time.UnixMicro(133532235323343)
+		}},
+		{name: "int millisecond", input: "133532235323", want: func() time.Time {
+			return time.UnixMilli(133532235323)
+		}},
+		{name: "int second", input: "133532235", want: func() time.Time {
+			return time.Unix(133532235, 0)
+		}},
+		{name: "negative int millisecond", input: "-133532235323", want: func() time.Time {
+			return time.UnixMilli(-133532235323)
+		}},
+		{name: "float microsecond", input: "133532235323343.25", want: func() time.Time {
+			return time.UnixMicro(133532235323343).Add(250 * time.Nanosecond) // used .25 because it is exactly reprasantable in binary (2^-2)
+		}},
+		{name: "float millisecond", input: "133532235323.25", want: func() time.Time {
+			return time.UnixMilli(133532235323).Add(250 * time.Microsecond)
+		}},
+		{name: "float second", input: "133532235.25", want: func() time.Time {
+			return time.Unix(133532235, int64(250*time.Millisecond))
+		}},
+		{name: "negative float millisecond", input: "-133532235323.25", want: func() time.Time {
+			return time.UnixMilli(-133532235323).Add(-250 * time.Microsecond)
+		}},
 		{name: "float out of max range", input: "1e500", wantErr: ErrIntOutOfRange},
 		{name: "float out of min range", input: "-1e500", wantErr: ErrIntOutOfRange},
 		{name: "string with timezone", input: "\"2026-08-25 22:42:17+03:00\"", want: func() time.Time {
@@ -157,10 +175,12 @@ func TestToTime(t *testing.T) {
 			t, _ := time.Parse(time.RFC3339, "2024-10-10T14:03:14.240+03:00")
 			return t
 		}},
-		{name: "string with timezone with surrounding spaces", input: " \"2026-08-25 22:42:17+03:00\" ", want: func() time.Time {
-			t, _ := time.Parse("2006-01-02 15:04:05Z07:00", "2026-08-25 22:42:17+03:00")
-			return t
-		}},
+		{name: "string with timezone with surrounding spaces", input: " \"2026-08-25 22:42:17+03:00\" ",
+			want: func() time.Time {
+				t, _ := time.Parse("2006-01-02 15:04:05Z07:00", "2026-08-25 22:42:17+03:00")
+				return t
+			},
+		},
 		{name: "string without timezone", input: "\"2026-08-25 22:42:17\"", want: func() time.Time {
 			t, _ := time.ParseInLocation("2006-01-02 15:04:05", "2026-08-25 22:42:17", time.Local)
 			return t
@@ -216,18 +236,78 @@ func TestToDuration(t *testing.T) {
 		{name: "boolean", input: "true", wantErr: ErrParseDuration},
 		{name: "array", input: "[]", wantErr: ErrParseDuration},
 		{name: "object", input: "{}", wantErr: ErrParseDuration},
-		{name: "int ms", input: "24", unit: time.Millisecond, want: 24 * time.Millisecond},
-		{name: "int us", input: "24", unit: time.Microsecond, want: 24 * time.Microsecond},
-		{name: "negative", input: "-24", unit: time.Millisecond, wantErr: ErrNegativeDuration},
-		{name: "float", input: "24.4", unit: time.Millisecond, want: 24400 * time.Microsecond},
-		{name: "int out of range", input: "1e500", unit: time.Microsecond, wantErr: ErrIntOutOfRange},
-		{name: "valid string with unit", input: "\"24ms\"", unit: time.Second, want: 24 * time.Millisecond},
-		{name: "string with surrounding spaces", input: " \"2m5s\" ", unit: time.Second, want: 2*time.Minute + 5*time.Second},
-		{name: "string number without fraction", input: "\"24\"", unit: time.Second, want: 24 * time.Second},
-		{name: "string number with fraction", input: "\"24.4\"", unit: time.Second, want: 24400 * time.Millisecond},
-		{name: "string number out of range", input: "\"1e500\"", unit: time.Second, wantErr: ErrIntOutOfRange},
-		{name: "negative string number", input: "\"-24\"", unit: time.Second, wantErr: ErrNegativeDuration},
-		{name: "us from ms", input: "0.024", unit: time.Millisecond, want: 24 * time.Microsecond},
+		{
+			name:  "int ms",
+			input: "24",
+			unit:  time.Millisecond,
+			want:  24 * time.Millisecond,
+		},
+		{
+			name:  "int us",
+			input: "24",
+			unit:  time.Microsecond,
+			want:  24 * time.Microsecond,
+		},
+		{
+			name:    "negative",
+			input:   "-24",
+			unit:    time.Millisecond,
+			wantErr: ErrNegativeDuration,
+		},
+		{
+			name:  "float",
+			input: "24.4",
+			unit:  time.Millisecond,
+			want:  24400 * time.Microsecond,
+		},
+		{
+			name:    "int out of range",
+			input:   "1e500",
+			unit:    time.Microsecond,
+			wantErr: ErrIntOutOfRange,
+		},
+		{
+			name:  "valid string with unit",
+			input: "\"24ms\"",
+			unit:  time.Second,
+			want:  24 * time.Millisecond,
+		},
+		{
+			name:  "string with surrounding spaces",
+			input: " \"2m5s\" ",
+			unit:  time.Second,
+			want:  2*time.Minute + 5*time.Second,
+		},
+		{
+			name:  "string number without fraction",
+			input: "\"24\"",
+			unit:  time.Second,
+			want:  24 * time.Second,
+		},
+		{
+			name:  "string number with fraction",
+			input: "\"24.4\"",
+			unit:  time.Second,
+			want:  24400 * time.Millisecond,
+		},
+		{
+			name:    "string number out of range",
+			input:   "\"1e500\"",
+			unit:    time.Second,
+			wantErr: ErrIntOutOfRange,
+		},
+		{
+			name:    "negative string number",
+			input:   "\"-24\"",
+			unit:    time.Second,
+			wantErr: ErrNegativeDuration,
+		},
+		{
+			name:  "us from ms",
+			input: "0.024",
+			unit:  time.Millisecond,
+			want:  24 * time.Microsecond,
+		},
 		{name: "zero", input: "0", unit: time.Millisecond, want: 0},
 	}
 
@@ -268,10 +348,26 @@ func TestTruncate(t *testing.T) {
 		input func() string
 		want  func() string
 	}{
-		{name: "valid", input: func() string { return "abc" }, want: func() string { return "abc" }},
-		{name: "empty", input: func() string { return "" }, want: func() string { return "" }},
-		{name: "out of range", input: func() string { return strings.Repeat("a", 72) }, want: func() string { return strings.Repeat("a", 64) + "..." }},
-		{name: "multi-byte rune", input: func() string { return strings.Repeat("a", 63) + "🎉" }, want: func() string { return strings.Repeat("a", 63) + "..." }},
+		{
+			name:  "valid",
+			input: func() string { return "abc" },
+			want:  func() string { return "abc" },
+		},
+		{
+			name:  "empty",
+			input: func() string { return "" },
+			want:  func() string { return "" },
+		},
+		{
+			name:  "out of range",
+			input: func() string { return strings.Repeat("a", 72) },
+			want:  func() string { return strings.Repeat("a", 64) + "..." },
+		},
+		{
+			name:  "multi-byte rune",
+			input: func() string { return strings.Repeat("a", 63) + "🎉" },
+			want:  func() string { return strings.Repeat("a", 63) + "..." },
+		},
 	}
 
 	for _, tt := range tests {

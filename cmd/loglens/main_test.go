@@ -19,9 +19,27 @@ func TestRun(t *testing.T) {
 		nilStdin   bool
 		input      string
 	}{
-		{name: "incorrect flag type", args: []string{"-top", "five"}, want: 2, wantStderr: "invalid value", nilStdin: true},
-		{name: "nil stdin", args: []string{"-"}, want: 2, wantStderr: ErrNoInput.Error(), nilStdin: true},
-		{name: "piped stdin", args: []string{"-"}, want: 0, wantStdout: "read lines 3", input: "go is the\nperfect\nlanguage"},
+		{
+			name:       "incorrect flag type",
+			args:       []string{"-top", "five"},
+			want:       2,
+			wantStderr: "invalid value",
+			nilStdin:   true,
+		},
+		{
+			name:       "nil stdin",
+			args:       []string{"-"},
+			want:       2,
+			wantStderr: ErrNoInput.Error(),
+			nilStdin:   true,
+		},
+		{
+			name:       "piped stdin",
+			args:       []string{"-"},
+			want:       0,
+			wantStdout: "read lines 3",
+			input:      "go is the\nperfect\nlanguage",
+		},
 	}
 
 	for _, tt := range tests {
@@ -67,8 +85,20 @@ func TestRunFile(t *testing.T) {
 		wantStdout string
 		wantStderr bool // done this way because fs.ErrNotExist is os-spesific
 	}{
-		{name: "real file", input: []byte("hell yeah"), file: "real_asf.txt", real: true, want: 0, wantStdout: "read lines 1"},
-		{name: "non-existing path", file: "there_aint_nothing", want: 1, wantStderr: true},
+		{
+			name:       "real file",
+			input:      []byte("hell yeah"),
+			file:       "real_asl.txt",
+			real:       true,
+			want:       0,
+			wantStdout: "read lines 1",
+		},
+		{
+			name:       "non-existing path",
+			file:       "there_aint_nothing",
+			want:       1,
+			wantStderr: true,
+		},
 	}
 
 	for _, tt := range tests {

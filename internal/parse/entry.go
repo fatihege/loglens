@@ -69,14 +69,15 @@ func (e *Entry) IsEmpty() bool {
 }
 
 var fieldAliases = map[FieldMask][]string{
-	FieldTimestamp:  {"time", "timestamp", "ts", "@timestamp"},
-	FieldLevel:      {"level", "severity"},
-	FieldMessage:    {"msg", "message"},
-	FieldMethod:     {"method", "http_method", "verb"},
-	FieldPath:       {"path", "url", "uri", "request_path"},
-	FieldStatus:     {"status", "status_code", "http_status", "code"},
-	FieldBytes:      {"bytes", "bytes_sent", "body_bytes_sent", "size", "resp_bytes", "content_length"},
-	FieldDuration:   {"duration_ms", "latency_ms", "duration_us", "duration_ns", "duration", "elapsed", "latency", "request_time", "upstream_response_time"},
+	FieldTimestamp: {"time", "timestamp", "ts", "@timestamp"},
+	FieldLevel:     {"level", "severity"},
+	FieldMessage:   {"msg", "message"},
+	FieldMethod:    {"method", "http_method", "verb"},
+	FieldPath:      {"path", "url", "uri", "request_path"},
+	FieldStatus:    {"status", "status_code", "http_status", "code"},
+	FieldBytes:     {"bytes", "bytes_sent", "body_bytes_sent", "size", "resp_bytes", "content_length"},
+	FieldDuration: {"duration_ms", "latency_ms", "duration_us", "duration_ns", "duration", "elapsed", "latency",
+		"request_time", "upstream_response_time"},
 	FieldRequestID:  {"request_id", "trace_id", "correlation_id"},
 	FieldRemoteAddr: {"remote_addr", "x_forwarded_for", "client_ip"},
 	FieldUserAgent:  {"user_agent", "http_user_agent", "ua"},

@@ -27,16 +27,37 @@ func TestWrap(t *testing.T) {
 		{name: "valid gzip", inputs: [][]byte{[]byte("this is\na gzip")}, want: "this is\na gzip", compress: true},
 		{name: "empty input", inputs: nil, want: ""},
 		{name: "1-byte input", inputs: [][]byte{[]byte("f")}, want: "f"},
-		{name: "corrupt gzip header", inputs: [][]byte{bytes.Join([][]byte{{0x1f, 0x8b}, []byte("corrupted")}, nil)}, wantWrapErr: gzip.ErrHeader},
-		{name: "truncated gzip", inputs: [][]byte{[]byte("always give up")}, wantReadErr: io.ErrUnexpectedEOF, compress: true, corrupt: func(b []byte) []byte {
-			return b[:len(b)-12] // drop the 8-footer plus part of the deflate stream
-		}},
-		{name: "bad checksum", inputs: [][]byte{[]byte("john pork is calling")}, wantReadErr: gzip.ErrChecksum, compress: true, corrupt: func(b []byte) []byte {
-			r := slices.Clone(b)
-			r[len(r)-5] ^= 0xFF // flip the last byte of the CRC32
-			return r
-		}},
-		{name: "2 gzip members", inputs: [][]byte{[]byte("it rains"), []byte(" milk today")}, want: "it rains milk today", compress: true},
+		{
+			name:        "corrupt gzip header",
+			inputs:      [][]byte{bytes.Join([][]byte{{0x1f, 0x8b}, []byte("corrupted")}, nil)},
+			wantWrapErr: gzip.ErrHeader,
+		},
+		{
+			name:        "truncated gzip",
+			inputs:      [][]byte{[]byte("always give up")},
+			wantReadErr: io.ErrUnexpectedEOF,
+			compress:    true,
+			corrupt: func(b []byte) []byte {
+				return b[:len(b)-12] // drop the 8-footer plus part of the deflate stream
+			},
+		},
+		{
+			name:        "bad checksum",
+			inputs:      [][]byte{[]byte("john pork is calling")},
+			wantReadErr: gzip.ErrChecksum,
+			compress:    true,
+			corrupt: func(b []byte) []byte {
+				r := slices.Clone(b)
+				r[len(r)-5] ^= 0xFF // flip the last byte of the CRC32
+				return r
+			},
+		},
+		{
+			name:     "2 gzip members",
+			inputs:   [][]byte{[]byte("it rains"), []byte(" milk today")},
+			want:     "it rains milk today",
+			compress: true,
+		},
 	}
 
 	for _, tt := range tests {
@@ -113,24 +134,44 @@ func TestOpen(t *testing.T) {
 		path     func(string) string
 		compress bool
 	}{
-		{name: "plain file with .gz extension", input: []byte("hate flies"), want: "hate flies", path: func(dir string) string {
-			return filepath.Join(dir, "file.gz")
-		}},
-		{name: "gzipped file with .txt extension", input: []byte("compressed text"), want: "compressed text", path: func(dir string) string {
-			return filepath.Join(dir, "compressed.txt")
-		}, compress: true},
-		{name: "corrupt gzip file", input: bytes.Join([][]byte{{0x1f, 0x8b}, []byte("corrupted")}, nil), wantErr: gzip.ErrHeader, path: func(dir string) string { // input had to be longer than 10 bytes because gzip header is 10 bytes
-			return filepath.Join(dir, "garbage.gz")
-		}},
-		{name: "empty gzip file", input: []byte{}, want: "", path: func(dir string) string {
-			return filepath.Join(dir, "empty.gz")
-		}, compress: true},
-		{name: "directory", wantErr: ErrPathIsDir, path: func(dir string) string {
-			return dir
-		}},
-		{name: "missing file", wantErr: fs.ErrNotExist, path: func(dir string) string {
-			return filepath.Join(dir, "nope")
-		}},
+		{
+			name:  "plain file with .gz extension",
+			input: []byte("hate flies"),
+			want:  "hate flies",
+			path:  func(dir string) string { return filepath.Join(dir, "file.gz") },
+		},
+		{
+			name:     "gzipped file with .txt extension",
+			input:    []byte("compressed text"),
+			want:     "compressed text",
+			path:     func(dir string) string { return filepath.Join(dir, "compressed.txt") },
+			compress: true,
+		},
+		{
+			name:    "corrupt gzip file",
+			input:   bytes.Join([][]byte{{0x1f, 0x8b}, []byte("corrupted")}, nil),
+			wantErr: gzip.ErrHeader,
+			path: func(dir string) string { // input had to be longer than 10 bytes because gzip header is 10 bytes
+				return filepath.Join(dir, "garbage.gz")
+			},
+		},
+		{
+			name:     "empty gzip file",
+			input:    []byte{},
+			want:     "",
+			path:     func(dir string) string { return filepath.Join(dir, "empty.gz") },
+			compress: true,
+		},
+		{
+			name:    "directory",
+			wantErr: ErrPathIsDir,
+			path:    func(dir string) string { return dir },
+		},
+		{
+			name:    "missing file",
+			wantErr: fs.ErrNotExist,
+			path:    func(dir string) string { return filepath.Join(dir, "nope") },
+		},
 	}
 
 	for _, tt := range tests {
@@ -201,12 +242,8 @@ func TestReaderClose(t *testing.T) {
 		compress bool
 		path     func(string) string
 	}{
-		{name: "plain file", path: func(dir string) string {
-			return filepath.Join(dir, "close.txt")
-		}},
-		{name: "gzipped file", compress: true, path: func(dir string) string {
-			return filepath.Join(dir, "close.gzip")
-		}},
+		{name: "plain file", path: func(dir string) string { return filepath.Join(dir, "close.txt") }},
+		{name: "gzipped file", compress: true, path: func(dir string) string { return filepath.Join(dir, "close.gzip") }},
 	}
 
 	for _, tt := range tests {

@@ -17,13 +17,59 @@ func TestIter(t *testing.T) {
 		expectedSkip  int
 		noNewLine     bool
 	}{
-		{name: "ordinary content", input: []string{"if you want to know more about", "anything in this world", "you can", "go fys"}, bufferSize: 16, expectedTotal: 4, expectedValid: 2, expectedSkip: 2},
-		{name: "15, 16, 17", input: []string{"123456789012345", "1234567890123456", "12345678901234567"}, bufferSize: 16, expectedTotal: 3, expectedValid: 1, expectedSkip: 2},
-		{name: "empty content", input: nil, bufferSize: 16, noNewLine: true},
-		{name: "escape characters", input: []string{"a\r", "b\r"}, bufferSize: 16, expectedTotal: 2, expectedValid: 2},
-		{name: "no trailing new line", input: []string{"a", "b"}, bufferSize: 16, expectedTotal: 2, expectedValid: 2, noNewLine: true},
-		{name: "over-long line at eof", input: []string{"a", "b", "this will exceed the limit"}, bufferSize: 16, expectedTotal: 3, expectedValid: 2, expectedSkip: 1, noNewLine: true},
-		{name: "empty line in the middle", input: []string{"a", "", "b"}, bufferSize: 16, expectedTotal: 3, expectedValid: 3},
+		{
+			name:          "ordinary content",
+			input:         []string{"if you want to know more about", "anything in this world", "you can", "go fishing"},
+			bufferSize:    16,
+			expectedTotal: 4,
+			expectedValid: 2,
+			expectedSkip:  2,
+		},
+		{
+			name:          "15, 16, 17",
+			input:         []string{"123456789012345", "1234567890123456", "12345678901234567"},
+			bufferSize:    16,
+			expectedTotal: 3,
+			expectedValid: 1,
+			expectedSkip:  2,
+		},
+		{
+			name:       "empty content",
+			input:      nil,
+			bufferSize: 16,
+			noNewLine:  true,
+		},
+		{
+			name:          "escape characters",
+			input:         []string{"a\r", "b\r"},
+			bufferSize:    16,
+			expectedTotal: 2,
+			expectedValid: 2,
+		},
+		{
+			name:          "no trailing new line",
+			input:         []string{"a", "b"},
+			bufferSize:    16,
+			expectedTotal: 2,
+			expectedValid: 2,
+			noNewLine:     true,
+		},
+		{
+			name:          "over-long line at eof",
+			input:         []string{"a", "b", "this will exceed the limit"},
+			bufferSize:    16,
+			expectedTotal: 3,
+			expectedValid: 2,
+			expectedSkip:  1,
+			noNewLine:     true,
+		},
+		{
+			name:          "empty line in the middle",
+			input:         []string{"a", "", "b"},
+			bufferSize:    16,
+			expectedTotal: 3,
+			expectedValid: 3,
+		},
 	}
 
 	for _, tt := range tests {
