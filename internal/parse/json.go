@@ -81,6 +81,9 @@ func (j *JSON) buildEntry(raw map[string]json.RawMessage) (Entry, error) {
 			timestamp, err := toTime(r)
 			if errors.Is(err, ErrNull) {
 				valid++
+			} else if errors.Is(err, ErrIntOutOfRange) {
+				valid++
+				j.fieldErrs[FieldTimestamp]++
 			} else if err != nil {
 				j.fieldErrs[FieldTimestamp]++
 			} else {
@@ -119,7 +122,10 @@ func (j *JSON) buildEntry(raw map[string]json.RawMessage) (Entry, error) {
 			status, err := toInt(r)
 			if errors.Is(err, ErrNull) {
 				valid++
-			} else if err != nil || status < 100 || status > 599 {
+			} else if errors.Is(err, ErrIntOutOfRange) || status < 100 || status > 599 {
+				valid++
+				j.fieldErrs[FieldStatus]++
+			} else if err != nil {
 				j.fieldErrs[FieldStatus]++
 			} else {
 				entry.Status = int(status)
@@ -136,7 +142,10 @@ func (j *JSON) buildEntry(raw map[string]json.RawMessage) (Entry, error) {
 			bytes, err := toInt(r)
 			if errors.Is(err, ErrNull) {
 				valid++
-			} else if err != nil || bytes < 0 {
+			} else if errors.Is(err, ErrIntOutOfRange) || bytes < 0 {
+				valid++
+				j.fieldErrs[FieldBytes]++
+			} else if err != nil {
 				j.fieldErrs[FieldBytes]++
 			} else {
 				entry.Bytes = bytes
@@ -159,6 +168,9 @@ func (j *JSON) buildEntry(raw map[string]json.RawMessage) (Entry, error) {
 			duration, err := toDuration(r, unit)
 			if errors.Is(err, ErrNull) {
 				valid++
+			} else if errors.Is(err, ErrIntOutOfRange) || errors.Is(err, ErrNegativeDuration) {
+				valid++
+				j.fieldErrs[FieldDuration]++
 			} else if err != nil {
 				j.fieldErrs[FieldDuration]++
 			} else {
