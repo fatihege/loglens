@@ -136,15 +136,16 @@ unrecognized %d
 
 `, read, request, skipped, unrecognized, malformed)
 
-	fm := j.Fieldmap()
+	fmap := j.Fieldmap()
+	fseen := j.FieldSeen()
 	for f, e := range j.FieldErrors() {
 		fmt.Fprintf(
 			stderr,
-			"warning: %q unparseable on %d of %d lines (%.2f%%)\n",
-			fm[f],
+			"warning: %q unparseable on %d of %d lines that had it (%.2f%%)\n",
+			fmap[f],
 			e,
-			read,
-			float32(e*100)/float32(read),
+			fseen[f],
+			float64(e*100)/float64(fseen[f]),
 		)
 	}
 
