@@ -17,4 +17,5 @@ var (
 	ErrDurationTooLarge    = errors.New("duration too large")
 	ErrUnknownDurationUnit = errors.New("unknown duration unit")
 	ErrMalformedLine       = errors.New("malformed line")
+	ErrUnrecognized        = errors.New("unrecognized JSON")
 )

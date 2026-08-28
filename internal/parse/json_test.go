@@ -37,17 +37,17 @@ func TestJSON(t *testing.T) {
 		{
 			name:    "null",
 			input:   [][]byte{[]byte("null")},
-			wantErr: []error{ErrMalformedLine},
+			wantErr: []error{ErrUnrecognized},
 		},
 		{
 			name:    "brackets only",
 			input:   [][]byte{[]byte("{}")},
-			wantErr: []error{ErrMalformedLine},
+			wantErr: []error{ErrUnrecognized},
 		},
 		{
 			name:    "no alias match",
 			input:   [][]byte{[]byte("{\"a\":1}")},
-			wantErr: []error{ErrMalformedLine},
+			wantErr: []error{ErrUnrecognized},
 		},
 		{
 			name:  "value override",
@@ -59,7 +59,7 @@ func TestJSON(t *testing.T) {
 		{
 			name:    "capitalized alias",
 			input:   [][]byte{[]byte("{\"Status\":200}")},
-			wantErr: []error{ErrMalformedLine},
+			wantErr: []error{ErrUnrecognized},
 		},
 		{
 			name:  "valid with surrounding spaces",
@@ -89,9 +89,14 @@ func TestJSON(t *testing.T) {
 			},
 		},
 		{
-			name:    "non-string value into string field",
-			input:   [][]byte{[]byte("{\"request_id\":3}")},
-			wantErr: []error{ErrMalformedLine},
+			name:  "non-string value into string field",
+			input: [][]byte{[]byte("{\"request_id\":3}")},
+			check: []func(*Entry, *JSON) (bool, string){
+				func(e *Entry, j *JSON) (bool, string) {
+					return !e.Has(FieldRequestID) && j.FieldErrors()[FieldRequestID] == 1,
+						"!e.Has(RequestID) && j.FieldErrors[RequestID] == 1"
+				},
+			},
 		},
 		{
 			name:  "valid bytes",
@@ -121,9 +126,14 @@ func TestJSON(t *testing.T) {
 			},
 		},
 		{
-			name:    "invalid bytes",
-			input:   [][]byte{[]byte("{\"bytes\":\"abc\"}")},
-			wantErr: []error{ErrMalformedLine},
+			name:  "invalid bytes",
+			input: [][]byte{[]byte("{\"bytes\":\"abc\"}")},
+			check: []func(*Entry, *JSON) (bool, string){
+				func(e *Entry, j *JSON) (bool, string) {
+					return !e.Has(FieldBytes) && j.FieldErrors()[FieldBytes] == 1,
+						"!e.Has(Bytes) && j.FieldErrors[Bytes] == 1"
+				},
+			},
 		},
 		{
 			name:  "2 time aliases",
@@ -143,7 +153,7 @@ func TestJSON(t *testing.T) {
 						"e.Status == 500 && j.Fieldmap[Status] == \"code\""
 				},
 			},
-			wantErr: []error{nil, ErrMalformedLine},
+			wantErr: []error{nil, ErrUnrecognized},
 		},
 		{
 			name:  "1 null 1 valid timestamp with different aliases",
@@ -154,7 +164,7 @@ func TestJSON(t *testing.T) {
 						"!e.Has(Timestamp) && j.Fieldmap[Timestamp] == \"time\" && j.FieldErrors[Timestamp] == 0"
 				},
 			},
-			wantErr: []error{nil, ErrMalformedLine},
+			wantErr: []error{nil, ErrUnrecognized},
 		},
 		{
 			name:  "4 valid fields",

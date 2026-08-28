@@ -72,7 +72,7 @@ var stringFields = []struct {
 
 func (j *JSON) buildEntry(raw map[string]json.RawMessage) (Entry, error) {
 	var entry Entry
-	valid := false
+	sawAnyKey := false
 
 	if assign(
 		j,
@@ -83,7 +83,7 @@ func (j *JSON) buildEntry(raw map[string]json.RawMessage) (Entry, error) {
 		func(_ time.Time, err error) bool { return errors.Is(err, ErrIntOutOfRange) },
 		&entry.Timestamp,
 	) {
-		valid = true
+		sawAnyKey = true
 	}
 
 	for _, f := range stringFields {
@@ -96,7 +96,7 @@ func (j *JSON) buildEntry(raw map[string]json.RawMessage) (Entry, error) {
 			func(v string, err error) bool { return false },
 			f.dest(&entry),
 		) {
-			valid = true
+			sawAnyKey = true
 		}
 	}
 
@@ -111,7 +111,7 @@ func (j *JSON) buildEntry(raw map[string]json.RawMessage) (Entry, error) {
 		},
 		&entry.Status,
 	) {
-		valid = true
+		sawAnyKey = true
 	}
 
 	if assign(
@@ -125,7 +125,7 @@ func (j *JSON) buildEntry(raw map[string]json.RawMessage) (Entry, error) {
 		},
 		&entry.Bytes,
 	) {
-		valid = true
+		sawAnyKey = true
 	}
 
 	durationKey, ok := j.fieldmap[FieldDuration]
@@ -146,12 +146,12 @@ func (j *JSON) buildEntry(raw map[string]json.RawMessage) (Entry, error) {
 			},
 			&entry.Duration,
 		) {
-			valid = true
+			sawAnyKey = true
 		}
 	}
 
-	if !valid {
-		return Entry{}, ErrMalformedLine
+	if !sawAnyKey {
+		return Entry{}, ErrUnrecognized
 	}
 
 	return entry, nil
@@ -165,7 +165,7 @@ func assign[T any](
 	conv func(json.RawMessage) (T, error),
 	rejected func(T, error) bool,
 	dest *T,
-) bool { // returning true means type was correct rather than field was set
+) (sawKey bool) {
 	key, ok := j.fieldmap[mask]
 	if !ok {
 		return false
@@ -184,7 +184,7 @@ func assign[T any](
 		return true
 	} else if err != nil {
 		j.fieldErrs[mask]++
-		return false
+		return true
 	}
 
 	*dest = v
