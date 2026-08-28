@@ -84,6 +84,9 @@ func toTime(raw json.RawMessage) (time.Time, error) {
 		if err != nil {
 			f, err := n.Float64()
 			if err != nil {
+				if errors.Is(err, strconv.ErrRange) {
+					return time.Time{}, fmt.Errorf("%q: %w", truncate(raw), ErrIntOutOfRange)
+				}
 				return time.Time{}, fmt.Errorf("%q: %w", truncate(raw), ErrParseTime)
 			}
 
@@ -165,6 +168,9 @@ func toDuration(raw json.RawMessage, unit time.Duration) (time.Duration, error) 
 		if err != nil {
 			f, e := strconv.ParseFloat(s, 64)
 			if e != nil {
+				if errors.Is(e, strconv.ErrRange) {
+					return 0, fmt.Errorf("%q: %w", truncate(raw), ErrIntOutOfRange)
+				}
 				return 0, fmt.Errorf("%q: %w", truncate(raw), ErrParseDuration)
 			}
 
@@ -179,6 +185,9 @@ func toDuration(raw json.RawMessage, unit time.Duration) (time.Duration, error) 
 	} else {
 		f, err := n.Float64()
 		if err != nil {
+			if errors.Is(err, strconv.ErrRange) {
+				return 0, fmt.Errorf("%q: %w", truncate(raw), ErrIntOutOfRange)
+			}
 			return 0, fmt.Errorf("%q: %w", truncate(raw), ErrParseDuration)
 		}
 
