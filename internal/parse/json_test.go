@@ -238,6 +238,20 @@ func TestJSON(t *testing.T) {
 				},
 			},
 		},
+		{
+			name:  "2 lines with same keys",
+			input: [][]byte{[]byte("{\"status\":200}"), []byte("{\"status\":500}")},
+			check: []func(*Entry, *JSON) (bool, string){
+				func(e *Entry, j *JSON) (bool, string) {
+					return e.Status == 200 && j.FieldSeen()[FieldStatus] == 1,
+						"e.Status == 200 && j.FieldSeen[Status] == 1"
+				},
+				func(e *Entry, j *JSON) (bool, string) {
+					return e.Status == 500 && j.FieldSeen()[FieldStatus] == 2,
+						"e.Status == 500 && j.FieldSeen[Status] == 2"
+				},
+			},
+		},
 	}
 
 	for _, tt := range tests {
