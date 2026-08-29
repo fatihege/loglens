@@ -207,6 +207,32 @@ func toDuration(raw json.RawMessage, unit time.Duration) (time.Duration, error) 
 	return duration, nil
 }
 
+func toStatus(raw json.RawMessage) (int, error) {
+	i, err := toInt(raw)
+	if err != nil {
+		return 0, err
+	}
+
+	if (i < 100 || i > 599) && i != 0 {
+		return 0, fmt.Errorf("%q: %w", truncate(raw), ErrStatusOutOfRange)
+	}
+
+	return int(i), nil
+}
+
+func toBytes(raw json.RawMessage) (int64, error) {
+	i, err := toInt(raw)
+	if err != nil {
+		return 0, err
+	}
+
+	if i < 0 {
+		return 0, fmt.Errorf("%q: %w", truncate(raw), ErrNegativeBytes)
+	}
+
+	return i, nil
+}
+
 func checkRaw(raw json.RawMessage) (json.RawMessage, error) {
 	raw = bytes.TrimSpace(raw)
 

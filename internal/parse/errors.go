@@ -16,6 +16,8 @@ var (
 	ErrNegativeDuration    = errors.New("negative duration")
 	ErrDurationTooLarge    = errors.New("duration too large")
 	ErrUnknownDurationUnit = errors.New("unknown duration unit")
+	ErrStatusOutOfRange    = errors.New("status out of range")
+	ErrNegativeBytes       = errors.New("negative bytes")
 	ErrMalformedLine       = errors.New("malformed line")
 	ErrUnrecognized        = errors.New("unrecognized JSON")
 )

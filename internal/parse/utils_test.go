@@ -342,6 +342,93 @@ func TestToDuration(t *testing.T) {
 	}
 }
 
+func TestToStatus(t *testing.T) {
+	tests := []struct {
+		name    string
+		input   string
+		want    int
+		wantErr error
+	}{
+		{name: "zero", input: "0", want: 0},
+		{name: "below range", input: "50", wantErr: ErrStatusOutOfRange},
+		{name: "in range", input: "200", want: 200},
+		{name: "above range", input: "600", wantErr: ErrStatusOutOfRange},
+	}
+
+	t.Parallel()
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			t.Parallel()
+
+			raw := json.RawMessage(tt.input)
+			got, err := toStatus(raw)
+
+			if tt.wantErr != nil {
+				if err == nil {
+					t.Fatalf("toStatus(%q) succeeded, want error", raw)
+				}
+				if got != 0 {
+					t.Errorf("toStatus(%q) returned non-zero int (%d) alongside error", raw, got)
+				}
+				if !errors.Is(err, tt.wantErr) {
+					t.Errorf("toStatus(%q) returned error %v, want %v", raw, err, tt.wantErr)
+				}
+				return
+			} else if err != nil {
+				t.Fatalf("toStatus(%q) unexpected error: %v", raw, err)
+			}
+
+			if got != tt.want {
+				t.Errorf("toStatus(%q) = %d, want %d", raw, got, tt.want)
+			}
+		})
+	}
+}
+
+func TestToBytes(t *testing.T) {
+	tests := []struct {
+		name    string
+		input   string
+		want    int64
+		wantErr error
+	}{
+		{name: "zero", input: "0", want: 0},
+		{name: "below zero", input: "-10", wantErr: ErrNegativeBytes},
+		{name: "above zero", input: "64", want: 64},
+	}
+
+	t.Parallel()
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			t.Parallel()
+
+			raw := json.RawMessage(tt.input)
+			got, err := toBytes(raw)
+
+			if tt.wantErr != nil {
+				if err == nil {
+					t.Fatalf("toBytes(%q) succeeded, want error", raw)
+				}
+				if got != 0 {
+					t.Errorf("toBytes(%q) returned non-zero int (%d) alongside error", raw, got)
+				}
+				if !errors.Is(err, tt.wantErr) {
+					t.Errorf("toBytes(%q) returned error %v, want %v", raw, err, tt.wantErr)
+				}
+				return
+			} else if err != nil {
+				t.Fatalf("toBytes(%q) unexpected error: %v", raw, err)
+			}
+
+			if got != tt.want {
+				t.Errorf("toBytes(%q) = %d, want %d", raw, got, tt.want)
+			}
+		})
+	}
+}
+
 func TestTruncate(t *testing.T) {
 	tests := []struct {
 		name  string

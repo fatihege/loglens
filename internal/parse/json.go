@@ -86,7 +86,6 @@ func (j *JSON) buildEntry(raw map[string]json.RawMessage) (Entry, error) {
 		raw,
 		FieldTimestamp,
 		toTime,
-		func(_ time.Time, err error) bool { return errors.Is(err, ErrIntOutOfRange) },
 		&entry.Timestamp,
 	) {
 		sawAnyKey = true
@@ -99,7 +98,6 @@ func (j *JSON) buildEntry(raw map[string]json.RawMessage) (Entry, error) {
 			raw,
 			f.mask,
 			toString,
-			func(v string, err error) bool { return false },
 			f.dest(&entry),
 		) {
 			sawAnyKey = true
@@ -111,10 +109,7 @@ func (j *JSON) buildEntry(raw map[string]json.RawMessage) (Entry, error) {
 		&entry,
 		raw,
 		FieldStatus,
-		func(r json.RawMessage) (int, error) { i, err := toInt(r); return int(i), err },
-		func(v int, err error) bool {
-			return errors.Is(err, ErrIntOutOfRange) || (err == nil && (v < 100 || v > 599))
-		},
+		toStatus,
 		&entry.Status,
 	) {
 		sawAnyKey = true
@@ -125,10 +120,7 @@ func (j *JSON) buildEntry(raw map[string]json.RawMessage) (Entry, error) {
 		&entry,
 		raw,
 		FieldBytes,
-		toInt,
-		func(v int64, err error) bool {
-			return errors.Is(err, ErrIntOutOfRange) || (err == nil && v < 0)
-		},
+		toBytes,
 		&entry.Bytes,
 	) {
 		sawAnyKey = true
@@ -147,9 +139,6 @@ func (j *JSON) buildEntry(raw map[string]json.RawMessage) (Entry, error) {
 			raw,
 			FieldDuration,
 			func(r json.RawMessage) (time.Duration, error) { return toDuration(r, unit) },
-			func(_ time.Duration, err error) bool {
-				return errors.Is(err, ErrIntOutOfRange) || errors.Is(err, ErrNegativeDuration)
-			},
 			&entry.Duration,
 		) {
 			sawAnyKey = true
@@ -169,7 +158,6 @@ func assign[T any](
 	raw map[string]json.RawMessage,
 	mask FieldMask,
 	conv func(json.RawMessage) (T, error),
-	rejected func(T, error) bool,
 	dest *T,
 ) (sawKey bool) {
 	key, ok := j.fieldmap[mask]
@@ -187,7 +175,7 @@ func assign[T any](
 	v, err := conv(r)
 	if errors.Is(err, ErrNull) {
 		return true
-	} else if err != nil || rejected(v, err) {
+	} else if err != nil {
 		j.fieldErrs[mask]++
 		return true
 	}
