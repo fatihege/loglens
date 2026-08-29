@@ -277,6 +277,12 @@ func TestJSON(t *testing.T) {
 
 				e, err := j.Parse(line)
 
+				if check != nil {
+					if result, str := check(&e, j); !result {
+						t.Errorf("check(%q) failed for %#v", str, e)
+					}
+				}
+
 				if wantErr != nil {
 					if err == nil {
 						t.Fatalf("j.Parse(%q) succeeded, want error", line)
@@ -287,15 +293,8 @@ func TestJSON(t *testing.T) {
 					if !errors.Is(err, wantErr) {
 						t.Errorf("j.Parse(%q) returned error %v, want %v", line, err, wantErr)
 					}
-					continue
 				} else if err != nil {
 					t.Fatalf("j.Parse(%q) unexpected error: %v", line, err)
-				}
-
-				if check != nil {
-					if result, str := check(&e, j); !result {
-						t.Errorf("check(%q) failed for %#v", str, e)
-					}
 				}
 			}
 		})
