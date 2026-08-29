@@ -1,6 +1,7 @@
 package main
 
 import (
+	"bytes"
 	"errors"
 	"flag"
 	"fmt"
@@ -74,6 +75,7 @@ func run(args []string, stdin io.Reader, stdout, stderr io.Writer) int {
 			break
 		} else if errors.Is(err, lines.ErrTooLong) {
 			malformed++
+			read++
 			fmt.Fprintf(stderr, "%s:%d: %v\n", iter.Name(), iter.Num(), err)
 			continue
 		} else if err != nil {
@@ -81,15 +83,21 @@ func run(args []string, stdin io.Reader, stdout, stderr io.Writer) int {
 			return 1
 		}
 
+		line = bytes.TrimSpace(line)
+		if len(line) == 0 {
+			continue
+		}
+
 		e, err := j.Parse(line)
-		if err != nil && !errors.Is(err, parse.ErrUnrecognized) {
+		switch {
+		case errors.Is(err, parse.ErrUnrecognized):
+			unrecognized++
+		case err != nil:
 			fmt.Fprintf(stderr, "%s:%d: %v\n", iter.Name(), iter.Num(), err)
 			malformed++
-		} else if errors.Is(err, parse.ErrUnrecognized) {
-			unrecognized++
-		} else if !e.IsRequest() {
+		case !e.IsRequest():
 			skipped++
-		} else {
+		default:
 			request++
 
 			if e.Has(parse.FieldStatus) {
