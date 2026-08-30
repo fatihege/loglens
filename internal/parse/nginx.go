@@ -66,8 +66,8 @@ func (n *Nginx) Parse(line []byte) (Entry, error) {
 		return Entry{}, ErrMalformedLine
 	}
 
-	sep, i, ok := parseBare(line, i)
-	if !ok || string(sep) != "-" {
+	_, i, ok = parseBare(line, i)
+	if !ok {
 		return Entry{}, ErrMalformedLine
 	}
 

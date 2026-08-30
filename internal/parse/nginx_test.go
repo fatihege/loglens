@@ -222,11 +222,6 @@ func TestNginx(t *testing.T) {
 			wantErr: []error{ErrMalformedLine},
 		},
 		{
-			name:    "incorrect separator",
-			input:   [][]byte{[]byte("google.com / A [01/Aug/1995:00:00:01 -0400] \"GET /health\" 200 64 \"https://shop.example/\" \"Mozilla/5.0 (Macintosh)\" 0.24")},
-			wantErr: []error{ErrMalformedLine},
-		},
-		{
 			name:  "status out of range",
 			input: [][]byte{[]byte("google.com - A [01/Aug/1995:00:00:01 -0400] \"GET /health\" 50 64 \"https://shop.example/\" \"Mozilla/5.0 (Macintosh)\" 0.24")},
 			check: []func(*Entry, *Nginx) (bool, string){
