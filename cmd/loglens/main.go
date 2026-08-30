@@ -9,6 +9,7 @@ import (
 	"maps"
 	"os"
 	"slices"
+	"time"
 
 	"github.com/fatihege/loglens/internal/lines"
 	"github.com/fatihege/loglens/internal/parse"
@@ -32,6 +33,7 @@ func openInput(path string, stdin io.Reader) (io.ReadCloser, string, error) {
 }
 
 func run(args []string, stdin io.Reader, stdout, stderr io.Writer) int {
+	start := time.Now()
 	fset := flag.NewFlagSet("loglens", flag.ContinueOnError)
 
 	fset.SetOutput(stderr)
@@ -156,7 +158,7 @@ func run(args []string, stdin io.Reader, stdout, stderr io.Writer) int {
 		fmt.Fprintln(stdout, "\nstatuses")
 
 		for _, p := range pairs {
-			fmt.Fprintf(stdout, "%d\t%d\n", p.Key, p.Value)
+			fmt.Fprintf(stdout, "%d %d\n", p.Key, p.Value)
 		}
 	}
 
@@ -169,26 +171,26 @@ unrecognized %d
 
 `, read, request, skipped, unrecognized, malformed)
 
-	if p == nil {
-		return 0
+	if p != nil {
+
+		fmap := p.Fieldmap()
+		fseen := p.FieldSeen()
+		ferrs := p.FieldErrors()
+
+		for _, k := range slices.Sorted(maps.Keys(ferrs)) {
+			fmt.Fprintf(
+				stderr,
+				"warning: %s (from %q) unparseable on %d of %d lines that had it (%.2f%%)\n",
+				k.String(),
+				fmap[k],
+				ferrs[k],
+				fseen[k],
+				float64(ferrs[k]*100)/float64(fseen[k]),
+			)
+		}
 	}
 
-	fmap := p.Fieldmap()
-	fseen := p.FieldSeen()
-	ferrs := p.FieldErrors()
-
-	for _, k := range slices.Sorted(maps.Keys(ferrs)) {
-		fmt.Fprintf(
-			stderr,
-			"warning: %s (from %q) unparseable on %d of %d lines that had it (%.2f%%)\n",
-			k.String(),
-			fmap[k],
-			ferrs[k],
-			fseen[k],
-			float64(ferrs[k]*100)/float64(fseen[k]),
-		)
-	}
-
+	fmt.Fprintf(stdout, "\ntook %s to finish\n", time.Since(start).Round(10*time.Microsecond))
 	return 0
 }
 
