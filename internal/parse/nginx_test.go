@@ -25,6 +25,33 @@ func TestNginx(t *testing.T) {
 		},
 		{
 			name:  "common format",
+			input: [][]byte{[]byte("google.com - A [01/Aug/1995:00:00:01 -0400] \"GET /search HTTP/1.0\" 200 624")},
+			check: []func(*Entry, *Nginx) (bool, string){
+				func(e *Entry, _ *Nginx) (bool, string) {
+					loc := time.FixedZone("UTC-4", -4*60*60)
+					return e.RemoteAddr == "google.com" && e.User == "A" &&
+						e.Timestamp.Equal(time.Date(1995, time.August, 1, 0, 0, 1, 0, loc)) && e.Method == "GET" &&
+						e.Path == "/search" && e.Protocol == "HTTP/1.0" && e.Status == 200 && e.Bytes == 624 &&
+						!e.Has(FieldReferer) && !e.Has(FieldUserAgent) && !e.Has(FieldDuration), "<each field same>"
+				},
+			},
+		},
+		{
+			name:  "combined format",
+			input: [][]byte{[]byte("google.com - A [01/Aug/1995:00:00:01 -0400] \"GET /search HTTP/1.0\" 200 624 \"https://shop.example/\" \"Mozilla/5.0 (Macintosh)\"")},
+			check: []func(*Entry, *Nginx) (bool, string){
+				func(e *Entry, _ *Nginx) (bool, string) {
+					loc := time.FixedZone("UTC-4", -4*60*60)
+					return e.RemoteAddr == "google.com" && e.User == "A" &&
+						e.Timestamp.Equal(time.Date(1995, time.August, 1, 0, 0, 1, 0, loc)) && e.Method == "GET" &&
+						e.Path == "/search" && e.Protocol == "HTTP/1.0" && e.Status == 200 && e.Bytes == 624 &&
+						e.Referer == "https://shop.example/" && e.UserAgent == "Mozilla/5.0 (Macintosh)" &&
+						!e.Has(FieldDuration), "<each field same>"
+				},
+			},
+		},
+		{
+			name:  "combined+timing format",
 			input: [][]byte{[]byte("google.com - A [01/Aug/1995:00:00:01 -0400] \"GET /search HTTP/1.0\" 200 624 \"https://shop.example/\" \"Mozilla/5.0 (Macintosh)\" 0.24")},
 			check: []func(*Entry, *Nginx) (bool, string){
 				func(e *Entry, _ *Nginx) (bool, string) {
