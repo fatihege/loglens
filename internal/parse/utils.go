@@ -208,15 +208,16 @@ func toDuration(raw json.RawMessage, unit time.Duration) (time.Duration, error) 
 }
 
 func toStatus(raw json.RawMessage) (int, error) {
-	i, err := toInt(raw)
+	i, err := strconv.ParseInt(string(raw), 10, 64)
 	if err != nil {
-		return 0, err
+		i, err = toInt(raw)
+		if err != nil {
+			return 0, err
+		}
 	}
-
-	if (i < 100 || i > 599) && i != 0 {
+	if i != 0 && (i < 100 || i > 599) {
 		return 0, fmt.Errorf("%q: %w", truncate(raw), ErrStatusOutOfRange)
 	}
-
 	return int(i), nil
 }
 

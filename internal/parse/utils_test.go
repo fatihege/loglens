@@ -350,6 +350,7 @@ func TestToStatus(t *testing.T) {
 		wantErr error
 	}{
 		{name: "zero", input: "0", want: 0},
+		{name: "triple-zero", input: "000", want: 0},
 		{name: "below range", input: "50", wantErr: ErrStatusOutOfRange},
 		{name: "in range", input: "200", want: 200},
 		{name: "above range", input: "600", wantErr: ErrStatusOutOfRange},
