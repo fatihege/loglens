@@ -88,20 +88,22 @@ func run(args []string, stdin io.Reader, stdout, stderr io.Writer) int {
 			continue
 		}
 
-		e, err := j.Parse(line)
-		switch {
-		case errors.Is(err, parse.ErrUnrecognized):
-			unrecognized++
-		case err != nil:
-			fmt.Fprintf(stderr, "%s:%d: %v\n", iter.Name(), iter.Num(), err)
-			malformed++
-		case !e.IsRequest():
-			skipped++
-		default:
-			request++
+		if bytes.HasPrefix(line, []byte("{")) {
+			e, err := j.Parse(line)
+			switch {
+			case errors.Is(err, parse.ErrUnrecognized):
+				unrecognized++
+			case err != nil:
+				fmt.Fprintf(stderr, "%s:%d: %v\n", iter.Name(), iter.Num(), err)
+				malformed++
+			case !e.IsRequest():
+				skipped++
+			default:
+				request++
 
-			if e.Has(parse.FieldStatus) {
-				statuses[e.Status]++
+				if e.Has(parse.FieldStatus) {
+					statuses[e.Status]++
+				}
 			}
 		}
 
