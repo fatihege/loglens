@@ -6,13 +6,16 @@ import (
 	"flag"
 	"fmt"
 	"io"
+	"maps"
 	"os"
-	"sort"
+	"slices"
 
 	"github.com/fatihege/loglens/internal/lines"
 	"github.com/fatihege/loglens/internal/parse"
 	"github.com/fatihege/loglens/internal/source"
 )
+
+const MalformedErrorCap = 10
 
 func openInput(path string, stdin io.Reader) (io.ReadCloser, string, error) {
 	if path == "" || path == "-" {
@@ -76,7 +79,9 @@ func run(args []string, stdin io.Reader, stdout, stderr io.Writer) int {
 		} else if errors.Is(err, lines.ErrTooLong) {
 			malformed++
 			read++
-			fmt.Fprintf(stderr, "%s:%d: %v\n", iter.Name(), iter.Num(), err)
+			if malformed <= MalformedErrorCap {
+				fmt.Fprintf(stderr, "%s:%d: %v\n", iter.Name(), iter.Num(), err)
+			}
 			continue
 		} else if err != nil {
 			fmt.Fprintf(stderr, "%s: %v\n", iter.Name(), err)
@@ -101,8 +106,10 @@ func run(args []string, stdin io.Reader, stdout, stderr io.Writer) int {
 		case errors.Is(err, parse.ErrUnrecognized):
 			unrecognized++
 		case err != nil:
-			fmt.Fprintf(stderr, "%s:%d: %v\n", iter.Name(), iter.Num(), err)
 			malformed++
+			if malformed <= MalformedErrorCap {
+				fmt.Fprintf(stderr, "%s:%d: %v\n", iter.Name(), iter.Num(), err)
+			}
 		case !e.IsRequest():
 			skipped++
 		default:
@@ -116,6 +123,16 @@ func run(args []string, stdin io.Reader, stdout, stderr io.Writer) int {
 		read++
 	}
 
+	if malformed > MalformedErrorCap {
+		fmt.Fprintf(
+			stderr,
+			"warning: %d malformed lines (%.2f%%); %d shown\n",
+			malformed,
+			float64(malformed*100)/float64(read),
+			MalformedErrorCap,
+		)
+	}
+
 	type pair struct {
 		Key   int
 		Value int
@@ -127,12 +144,12 @@ func run(args []string, stdin io.Reader, stdout, stderr io.Writer) int {
 		pairs = append(pairs, pair{Key: k, Value: v})
 	}
 
-	sort.Slice(pairs, func(i, j int) bool {
-		if pairs[i].Value != pairs[j].Value {
-			return pairs[i].Value > pairs[j].Value
+	slices.SortFunc(pairs, func(a, b pair) int {
+		if a.Value != b.Value {
+			return b.Value - a.Value
 		}
 
-		return pairs[i].Key < pairs[j].Key
+		return a.Key - b.Key
 	})
 
 	if len(pairs) > 0 {
@@ -158,14 +175,17 @@ unrecognized %d
 
 	fmap := p.Fieldmap()
 	fseen := p.FieldSeen()
-	for f, e := range p.FieldErrors() {
+	ferrs := p.FieldErrors()
+
+	for _, k := range slices.Sorted(maps.Keys(ferrs)) {
 		fmt.Fprintf(
 			stderr,
-			"warning: %q unparseable on %d of %d lines that had it (%.2f%%)\n",
-			fmap[f],
-			e,
-			fseen[f],
-			float64(e*100)/float64(fseen[f]),
+			"warning: %s (from %q) unparseable on %d of %d lines that had it (%.2f%%)\n",
+			k.String(),
+			fmap[k],
+			ferrs[k],
+			fseen[k],
+			float64(ferrs[k]*100)/float64(fseen[k]),
 		)
 	}
 

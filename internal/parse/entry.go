@@ -1,6 +1,9 @@
 package parse
 
-import "time"
+import (
+	"fmt"
+	"time"
+)
 
 type FieldMask uint16
 
@@ -21,6 +24,43 @@ const (
 	FieldProtocol
 	FieldQuery
 )
+
+func (fm FieldMask) String() string {
+	switch fm {
+	case FieldTimestamp:
+		return "timestamp"
+	case FieldLevel:
+		return "level"
+	case FieldMessage:
+		return "message"
+	case FieldMethod:
+		return "method"
+	case FieldPath:
+		return "path"
+	case FieldStatus:
+		return "status"
+	case FieldBytes:
+		return "bytes"
+	case FieldDuration:
+		return "duration"
+	case FieldRequestID:
+		return "request_id"
+	case FieldRemoteAddr:
+		return "remote_addr"
+	case FieldUserAgent:
+		return "user_agent"
+	case FieldReferer:
+		return "referer"
+	case FieldUser:
+		return "user"
+	case FieldProtocol:
+		return "protocol"
+	case FieldQuery:
+		return "query"
+	default:
+		return fmt.Sprintf("FieldMask(%d)", fm)
+	}
+}
 
 type Entry struct {
 	Timestamp  time.Time
