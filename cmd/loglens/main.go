@@ -65,7 +65,7 @@ func run(args []string, stdin io.Reader, stdout, stderr io.Writer) int {
 	read, request, malformed, unrecognized, skipped := 0, 0, 0, 0, 0
 
 	iter := lines.New(rc, filename, 64*1024)
-	j := parse.NewJSON()
+	var p parse.Parser
 
 	statuses := make(map[int]int)
 
@@ -88,22 +88,28 @@ func run(args []string, stdin io.Reader, stdout, stderr io.Writer) int {
 			continue
 		}
 
-		if bytes.HasPrefix(line, []byte("{")) {
-			e, err := j.Parse(line)
-			switch {
-			case errors.Is(err, parse.ErrUnrecognized):
-				unrecognized++
-			case err != nil:
-				fmt.Fprintf(stderr, "%s:%d: %v\n", iter.Name(), iter.Num(), err)
-				malformed++
-			case !e.IsRequest():
-				skipped++
-			default:
-				request++
+		if p == nil {
+			if bytes.HasPrefix(line, []byte("{")) {
+				p = parse.NewJSON()
+			} else {
+				p = parse.NewNginx()
+			}
+		}
 
-				if e.Has(parse.FieldStatus) {
-					statuses[e.Status]++
-				}
+		e, err := p.Parse(line)
+		switch {
+		case errors.Is(err, parse.ErrUnrecognized):
+			unrecognized++
+		case err != nil:
+			fmt.Fprintf(stderr, "%s:%d: %v\n", iter.Name(), iter.Num(), err)
+			malformed++
+		case !e.IsRequest():
+			skipped++
+		default:
+			request++
+
+			if e.Has(parse.FieldStatus) {
+				statuses[e.Status]++
 			}
 		}
 
@@ -146,9 +152,13 @@ unrecognized %d
 
 `, read, request, skipped, unrecognized, malformed)
 
-	fmap := j.Fieldmap()
-	fseen := j.FieldSeen()
-	for f, e := range j.FieldErrors() {
+	if p == nil {
+		return 0
+	}
+
+	fmap := p.Fieldmap()
+	fseen := p.FieldSeen()
+	for f, e := range p.FieldErrors() {
 		fmt.Fprintf(
 			stderr,
 			"warning: %q unparseable on %d of %d lines that had it (%.2f%%)\n",

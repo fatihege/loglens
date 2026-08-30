@@ -19,5 +19,5 @@ var (
 	ErrStatusOutOfRange    = errors.New("status out of range")
 	ErrNegativeBytes       = errors.New("negative bytes")
 	ErrMalformedLine       = errors.New("malformed line")
-	ErrUnrecognized        = errors.New("unrecognized JSON")
+	ErrUnrecognized        = errors.New("unrecognized line")
 )

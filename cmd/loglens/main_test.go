@@ -7,38 +7,41 @@ import (
 	"path/filepath"
 	"strings"
 	"testing"
+
+	"github.com/fatihege/loglens/internal/parse"
 )
 
 func TestRun(t *testing.T) {
 	tests := []struct {
 		name       string
 		args       []string
+		input      string
+		nilStdin   bool
 		want       int
 		wantStderr string
 		wantStdout string
-		nilStdin   bool
-		input      string
 	}{
 		{
 			name:       "incorrect flag type",
 			args:       []string{"-top", "five"},
+			nilStdin:   true,
 			want:       2,
 			wantStderr: "invalid value",
-			nilStdin:   true,
 		},
 		{
 			name:       "nil stdin",
 			args:       []string{"-"},
+			nilStdin:   true,
 			want:       2,
 			wantStderr: ErrNoInput.Error(),
-			nilStdin:   true,
 		},
 		{
 			name:       "piped stdin",
 			args:       []string{"-"},
+			input:      "go is the\nperfect\nlanguage",
 			want:       0,
 			wantStdout: "read lines 3",
-			input:      "go is the\nperfect\nlanguage",
+			wantStderr: parse.ErrMalformedLine.Error(),
 		},
 	}
 
@@ -92,6 +95,7 @@ func TestRunFile(t *testing.T) {
 			real:       true,
 			want:       0,
 			wantStdout: "read lines 1",
+			wantStderr: true,
 		},
 		{
 			name:       "non-existing path",
