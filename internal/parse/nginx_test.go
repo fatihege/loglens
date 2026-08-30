@@ -25,13 +25,13 @@ func TestNginx(t *testing.T) {
 		},
 		{
 			name:  "common format",
-			input: [][]byte{[]byte("google.com - A [01/Aug/1995:00:00:01 -0400] \"GET /search HTTP/1.0\" 200 624")},
+			input: [][]byte{[]byte("google.com - A [01/Aug/1995:00:00:01 -0400] \"GET /search\\\" HTTP/1.0\" 200 624")},
 			check: []func(*Entry, *Nginx) (bool, string){
 				func(e *Entry, _ *Nginx) (bool, string) {
 					loc := time.FixedZone("UTC-4", -4*60*60)
 					return e.RemoteAddr == "google.com" && e.User == "A" &&
 						e.Timestamp.Equal(time.Date(1995, time.August, 1, 0, 0, 1, 0, loc)) && e.Method == "GET" &&
-						e.Path == "/search" && e.Protocol == "HTTP/1.0" && e.Status == 200 && e.Bytes == 624 &&
+						e.Path == "/search\\\"" && e.Protocol == "HTTP/1.0" && e.Status == 200 && e.Bytes == 624 &&
 						!e.Has(FieldReferer) && !e.Has(FieldUserAgent) && !e.Has(FieldDuration), "<each field same>"
 				},
 			},
@@ -169,6 +169,11 @@ func TestNginx(t *testing.T) {
 			},
 		},
 		{
+			name:    "backslash as last byte in quote",
+			input:   [][]byte{[]byte("- - - [-] \"abc\\\" - - \"-\" \"-\" -")},
+			wantErr: []error{ErrMalformedLine},
+		},
+		{
 			name:  "random spaces in between",
 			input: [][]byte{[]byte("  google.com  -    A  [01/Aug/1995:00:00:01 -0400] \"GET  /health \" 200  64  \"https://shop.example/\"   \"Mozilla/5.0 (Macintosh)\" 0.24")},
 			check: []func(*Entry, *Nginx) (bool, string){
@@ -304,16 +309,16 @@ func TestNginx(t *testing.T) {
 
 				if wantErr != nil {
 					if err == nil {
-						t.Fatalf("j.Parse(%q) succeeded, want error", line)
+						t.Fatalf("n.Parse(%q) succeeded, want error", line)
 					}
 					if e.Mask != 0 {
-						t.Errorf("j.Parse(%q) returned non-empty entry alongside error", line)
+						t.Errorf("n.Parse(%q) returned non-empty entry alongside error", line)
 					}
 					if !errors.Is(err, wantErr) {
-						t.Errorf("j.Parse(%q) returned error %v, want %v", line, err, wantErr)
+						t.Errorf("n.Parse(%q) returned error %v, want %v", line, err, wantErr)
 					}
 				} else if err != nil {
-					t.Fatalf("j.Parse(%q) unexpected error: %v", line, err)
+					t.Fatalf("n.Parse(%q) unexpected error: %v", line, err)
 				}
 			}
 		})

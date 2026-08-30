@@ -306,12 +306,27 @@ func parseDelimited(line []byte, i int, left, right byte) ([]byte, int, bool) {
 		return nil, i, false
 	}
 
-	end := bytes.IndexByte(line[i+1:], right)
-	if end == -1 {
-		return nil, i, false
-	}
+	end := i + 1
+	if right == '"' {
+		for end < len(line) && line[end] != right {
+			if line[end] == '\\' {
+				end += 2
+				continue
+			}
 
-	end += i + 1
+			end++
+		}
+
+		if end >= len(line) {
+			return nil, i, false
+		}
+	} else {
+		end = bytes.IndexByte(line[i+1:], right)
+		if end == -1 {
+			return nil, i, false
+		}
+		end += i + 1
+	}
 
 	return line[i+1 : end], end + 1, true
 }
