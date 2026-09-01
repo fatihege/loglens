@@ -30,10 +30,10 @@ func (i *Iter) Next() ([]byte, error) {
 	line, err := i.br.ReadSlice('\n')
 	if errors.Is(err, bufio.ErrBufferFull) {
 		for errors.Is(err, bufio.ErrBufferFull) {
-			line, err = i.br.ReadSlice('\n')
+			_, err = i.br.ReadSlice('\n')
 		}
 
-		if errors.Is(err, io.EOF) {
+		if err != nil {
 			i.sticky = err
 		}
 
@@ -42,7 +42,7 @@ func (i *Iter) Next() ([]byte, error) {
 		return nil, ErrTooLong
 	} else if errors.Is(err, io.EOF) {
 		i.sticky = err
-		if len(line) <= 0 {
+		if len(line) < 1 {
 			return nil, err
 		}
 	} else if err != nil {
